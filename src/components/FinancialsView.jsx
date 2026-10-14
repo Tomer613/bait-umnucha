@@ -55,26 +55,184 @@ export default function FinancialsView() {
   const [uploadMessage, setUploadMessage] = useState(null);
 
   if (!currentBuilding) {
+    const totalBalance = buildings.reduce((acc, b) => acc + (b.currentBalance || 0), 0);
+    const updatedCount = buildings.filter(b => b.statusMonthUpdated).length;
+    const allDebtsSum = buildings.reduce((acc, b) => {
+      return acc + (b.apartments || []).reduce((sum, apt) => sum + ((apt.debtMonths?.length || 0) * (apt.monthlyDues || 0)), 0);
+    }, 0);
+    const allTransactions = buildings.flatMap(b => 
+      (b.expenses || []).map(exp => ({ ...exp, buildingId: b.id, buildingName: b.name, buildingColor: b.color }))
+    ).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
     return (
-      <div style={{ maxWidth: 800, margin: '60px auto', textAlign: 'center', padding: 20 }}>
-        <Building size={48} color="var(--color-gold-400)" style={{ marginBottom: 16 }} />
-        <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-          אנא בחר בניין לניהול כספים
-        </h3>
-        <p style={{ color: 'var(--color-brown-600)', marginBottom: 20 }}>
-          בחר בניין מתוך הרשימה למעלה או מתוך הבניינים המופיעים כאן:
-        </p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {buildings.slice(0, 6).map(b => (
-            <button
-              key={b.id}
-              onClick={() => setSelectedBuildingId(b.id)}
-              className="btn btn-secondary"
-            >
-              {b.name}
-            </button>
-          ))}
+      <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
+        
+        {/* Header */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span className="badge badge-gold" style={{ fontSize: '0.82rem' }}>מבט-על כספי</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--color-brown-500)', fontWeight: 600 }}>כלל 15 הבניינים המנוהלים</span>
+          </div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+            מרכז כספים מצרפי — כלל הבניינים
+          </h2>
+          <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem', marginTop: 4 }}>
+            ריכוז יתרות קופה, מעקב תנועות מכלל הבניינים וקליטת דוחות סליקה מרוכזים
+          </p>
         </div>
+
+        {/* 4 Metric Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 16,
+          marginBottom: 28
+        }}>
+          <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-gold-500)' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)', marginBottom: 6 }}>
+              יתרה מצרפית בכלל הקופות
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+              {totalBalance.toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
+            </div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-gold-600)' }}>בכל 15 חשבונות הבנק</span>
+          </div>
+
+          <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-success)' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)', marginBottom: 6 }}>
+              סטטוס עדכון חודשי
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-success)' }}>
+              {updatedCount} / {buildings.length}
+            </div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)' }}>בניינים עודכנו בספטמבר</span>
+          </div>
+
+          <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-danger)' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)', marginBottom: 6 }}>
+              סך חובות פתוחים מצרפי
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-danger)' }}>
+              {allDebtsSum.toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
+            </div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)' }}>בכלל הדירות בפיגור</span>
+          </div>
+
+          <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-brown-500)' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)', marginBottom: 6 }}>
+              סך תנועות רשומות
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+              {allTransactions.length} תנועות
+            </div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)' }}>הוצאות ותקבולים</span>
+          </div>
+        </div>
+
+        {/* טבלת כל 15 קופות הבניינים */}
+        <div className="card" style={{ background: '#FFFFFF', padding: 0, overflow: 'hidden', marginBottom: 28 }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-beige-border)' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+              טבלת מצב קופות וחשבונות בנק לכל 15 הבניינים
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-brown-500)' }}>
+              לחץ על ״כניסה לניהול כספים״ לביצוע הפקדה ידנית, הוצאה או קליטת קובץ עו״ש בנקאי לבניין ספציפי
+            </p>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.9rem' }}>
+              <thead>
+                <tr style={{ background: 'var(--color-cream-subtle)', borderBottom: '1px solid var(--color-beige-border)' }}>
+                  <th style={{ padding: '12px 20px', fontWeight: 700 }}>בניין וכתובת</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>חשבון בנק</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>קוד חיובית</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>יתרת קופה</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>סטטוס קליטה</th>
+                  <th style={{ padding: '12px 20px', fontWeight: 700, textAlign: 'center' }}>פעולה</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buildings.map(b => (
+                  <tr key={b.id} style={{ borderBottom: '1px solid var(--color-beige-divider)' }}>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: b.color?.primary || 'var(--color-gold-500)', display: 'inline-block' }} />
+                        <span style={{ fontWeight: 800, color: 'var(--color-brown-900)' }}>{b.name}</span>
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)', paddingRight: 20 }}>{b.address}</span>
+                    </td>
+                    <td style={{ padding: '14px 16px', color: 'var(--color-brown-700)' }}>{b.bankAccount}</td>
+                    <td style={{ padding: '14px 16px', color: 'var(--color-brown-600)' }}>{b.hiyuvitCode || '—'}</td>
+                    <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+                      {(b.currentBalance || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {b.statusMonthUpdated ? (
+                        <span className="badge badge-success">מעודכן</span>
+                      ) : (
+                        <span className="badge badge-neutral">ממתין לקבצים</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => setSelectedBuildingId(b.id)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <span>ניהול כספים בבניין זה</span>
+                        <ArrowUpRight size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* תנועות אחרונות מכלל הבניינים */}
+        <div className="card" style={{ background: '#FFFFFF', padding: 24 }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brown-900)', marginBottom: 16 }}>
+            תנועות והוצאות אחרונות מכלל 15 הבניינים
+          </h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.88rem' }}>
+              <thead>
+                <tr style={{ background: 'var(--color-cream-subtle)', borderBottom: '1px solid var(--color-beige-border)' }}>
+                  <th style={{ padding: '10px 14px' }}>בניין</th>
+                  <th style={{ padding: '10px 14px' }}>תאריך</th>
+                  <th style={{ padding: '10px 14px' }}>תיאור</th>
+                  <th style={{ padding: '10px 14px' }}>קטגוריה</th>
+                  <th style={{ padding: '10px 14px' }}>מקור</th>
+                  <th style={{ padding: '10px 14px' }}>סכום</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allTransactions.slice(0, 10).map((tx, idx) => (
+                  <tr key={`${tx.id}-${idx}`} style={{ borderBottom: '1px solid var(--color-beige-divider)' }}>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: tx.buildingColor?.primary || 'var(--color-gold-500)' }} />
+                        <span style={{ fontWeight: 700 }}>{tx.buildingName}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 14px', fontSize: '0.82rem' }}>{tx.date}</td>
+                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>{tx.description}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--color-brown-600)' }}>{tx.category}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>{tx.source}</span>
+                    </td>
+                    <td style={{ padding: '12px 14px', fontWeight: 700, color: tx.amount > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                      {tx.amount > 0 ? `-${tx.amount.toLocaleString('he-IL')} ₪` : `+${Math.abs(tx.amount).toLocaleString('he-IL')} ₪`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     );
   }

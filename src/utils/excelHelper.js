@@ -183,3 +183,96 @@ export function exportDebtsLedgerExcel(building) {
 
   downloadWorkbook(wb, `דוח_חובות_דיירים_${building.name}.xlsx`);
 }
+
+/**
+ * ייצוא דו"ח מאסטר מרוכז לכלל הבניינים (לשונית סיכום הנהלה + לשוניות לפי בניין)
+ */
+export function exportMasterSummaryExcel(buildings = []) {
+  const wb = XLSX.utils.book_new();
+
+  // לשונית 1: סיכום כללי
+  const summaryData = [
+    ["שם בניין", "כתובת", "קוד חיובית", "חשבון בנק", "יתרת קופה (₪)", "מספר דירות", "צפי גבייה חודשי (₪)", "סך חובות פתוחים (₪)", "תקלות פתוחות"]
+  ];
+
+  let totalBalanceAll = 0;
+  let totalDuesAll = 0;
+  let totalDebtsAll = 0;
+  let totalAptsAll = 0;
+
+  buildings.forEach(b => {
+    const aptCount = b.apartments?.length || 0;
+    const monthlyDues = (b.apartments || []).reduce((acc, a) => acc + (a.monthlyDues || 0), 0);
+    const debts = (b.apartments || []).reduce((acc, a) => acc + ((a.debtMonths?.length || 0) * (a.monthlyDues || 0)), 0);
+    const openIssues = (b.issues || []).filter(i => i.status === 'open').length;
+
+    totalBalanceAll += (b.currentBalance || 0);
+    totalDuesAll += monthlyDues;
+    totalDebtsAll += debts;
+    totalAptsAll += aptCount;
+
+    summaryData.push([
+      b.name,
+      b.address || '',
+      b.hiyuvitCode || '',
+      b.bankAccount || '',
+      b.currentBalance || 0,
+      aptCount,
+      monthlyDues,
+      debts,
+      openIssues
+    ]);
+  });
+
+  summaryData.push([
+    "סה״כ כלל הבניינים",
+    "",
+    "",
+    "",
+    totalBalanceAll,
+    totalAptsAll,
+    totalDuesAll,
+    totalDebtsAll,
+    ""
+  ]);
+
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [
+    { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 16 }
+  ];
+  XLSX.utils.book_append_sheet(wb, wsSummary, "סיכום הנהלה כלל הבניינים");
+
+  // לשוניות עבור כל בניין בנפרד
+  buildings.forEach(b => {
+    const bData = [
+      ["מספר דירה", "שם דייר", "טלפון", "אימייל", "דמי ועד (₪)", "אופן תשלום", "מספר חודשי חוב", "סך חוב (₪)"]
+    ];
+
+    (b.apartments || []).forEach(apt => {
+      const debtCount = apt.debtMonths?.length || 0;
+      const debtSum = debtCount * (apt.monthlyDues || 0);
+      bData.push([
+        apt.aptNum,
+        apt.tenantName,
+        apt.phone || '',
+        apt.email || '',
+        apt.monthlyDues || 0,
+        apt.paymentMethod || 'חיובית',
+        debtCount,
+        debtSum
+      ]);
+    });
+
+    const wsBuilding = XLSX.utils.aoa_to_sheet(bData);
+    wsBuilding['!cols'] = [
+      { wch: 12 }, { wch: 20 }, { wch: 16 }, { wch: 25 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }
+    ];
+    // שם לשונית עד 31 תווים ללא תווים אסורים
+    const safeSheetName = b.name.replace(/[:\\/?*\[\]]/g, '').slice(0, 31);
+    XLSX.utils.book_append_sheet(wb, wsBuilding, safeSheetName);
+  });
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  downloadWorkbook(wb, `דוח_מאסטר_כלל_הבניינים_${dateStr}.xlsx`);
+}
+

@@ -173,7 +173,6 @@ export default function Navbar({ onOpenAddBuilding }) {
                 type="button"
                 onClick={() => {
                   setSelectedBuildingId('all');
-                  setActiveTab('dashboard');
                 }}
                 style={{
                   border: 'none',

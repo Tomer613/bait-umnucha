@@ -1,5 +1,5 @@
 // ==========================================================================
-// בית ומנוחה - אשף מכתבים ותפוצה ב-Gmail (ללא עלות שרת)
+// בית ומנוחה - אשף מכתבים, מודעות ותפוצה ב-Gmail (בניין יחיד או כלל הבניינים)
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -10,21 +10,21 @@ import {
   Mail, 
   FileText, 
   Check, 
-  Building, 
+  Building2, 
   Users, 
   Sparkles,
-  Copy
+  Copy,
+  Layers
 } from 'lucide-react';
 
 export default function LetterWizard() {
-  const { currentBuilding, buildings, setSelectedBuildingId } = useApp();
+  const { currentBuilding, buildings, selectedBuildingId } = useApp();
+
+  const isGlobalMode = selectedBuildingId === 'all' || !currentBuilding;
 
   const [selectedCategory, setSelectedCategory] = useState("גבייה וחובות");
   const [selectedTemplateId, setSelectedTemplateId] = useState("debt-1");
   const [copiedNotification, setCopiedNotification] = useState(false);
-
-  // הבניין הנבחר למכתב - נגזר ישירות מהבחירה בדרופליסט העליון
-  const targetBuilding = currentBuilding || buildings[0];
 
   // רשימת קטגוריות ייחודיות
   const categories = Array.from(new Set(LETTER_TEMPLATES.map(t => t.category)));
@@ -35,10 +35,10 @@ export default function LetterWizard() {
   // התבנית הפעילה כעת
   const activeTemplate = LETTER_TEMPLATES.find(t => t.id === selectedTemplateId) || filteredTemplates[0] || LETTER_TEMPLATES[0];
 
-  // החלפת משתנים דינמיים (שם הבניין, תאריך)
+  // החלפת משתנים דינמיים
   const replaceVariables = (text) => {
     if (!text) return '';
-    const bName = targetBuilding ? targetBuilding.name : 'הבניין';
+    const bName = isGlobalMode ? 'הבניין שלכם (בניהול בית ומנוחה)' : currentBuilding.name;
     const dateStr = new Date().toLocaleDateString('he-IL');
     return text
       .replace(/{{שם_בניין}}/g, bName)
@@ -58,10 +58,10 @@ export default function LetterWizard() {
     }
   };
 
-  // איסוף כל כתובות המייל של דיירי הבניין הנבחר
-  const tenantEmails = (targetBuilding && targetBuilding.apartments)
-    ? targetBuilding.apartments.map(a => a.email).filter(e => e && e.includes('@'))
-    : [];
+  // איסוף כל כתובות המייל לפי המצב (רוחבי לכל הבניינים או לבניין ספציפי)
+  const tenantEmails = isGlobalMode
+    ? buildings.flatMap(b => (b.apartments || []).map(a => a.email).filter(e => e && e.includes('@')))
+    : (currentBuilding.apartments || []).map(a => a.email).filter(e => e && e.includes('@'));
 
   // פתיחה ישירה ב-Gmail דרך mailto עם עותק מוסתר (BCC)
   const openGmailBroadcast = () => {
@@ -69,7 +69,6 @@ export default function LetterWizard() {
     const body = encodeURIComponent(replaceVariables(editedContent));
     const bccList = encodeURIComponent(tenantEmails.join(','));
 
-    // יצירת קישור mailto מלא
     const mailtoUrl = `mailto:?bcc=${bccList}&subject=${subject}&body=${body}`;
     window.location.href = mailtoUrl;
   };
@@ -86,20 +85,30 @@ export default function LetterWizard() {
     setTimeout(() => setCopiedNotification(false), 3000);
   };
 
+  const activeColor = currentBuilding?.color || {
+    primary: 'var(--color-gold-500)',
+    tint: 'var(--color-gold-50)',
+    border: 'var(--color-gold-300)',
+    tagBg: 'var(--color-gold-100)',
+    text: 'var(--color-gold-700)'
+  };
+
   return (
     <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
       
       {/* Wizard Header (No-Print) */}
       <div className="no-print" style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)', marginBottom: 6 }}>
-          אשף מכתבים, מודעות תלייה ותפוצה ב-Gmail
+          {isGlobalMode ? 'הודעות תלייה ותפוצה רוחבית לכלל הבניינים' : `אשף מכתבים ותפוצה — ${currentBuilding.name}`}
         </h2>
         <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem' }}>
-          הפקת מודעות ייצוגיות ללוח המודעות, או שליחה מרוכזת לכל דיירי הבניין ישירות מג'ימייל ללא שום עלות
+          {isGlobalMode 
+            ? `הפקת מודעות לכלל 15 הבניינים במקביל, או שליחת מייל מרוכזת (BCC) לכל הדיירים בכל הבניינים ללא עלות שרת`
+            : `הפקת מודעות תלייה ללוח המודעות של ${currentBuilding.name}, או שליחה בדוא״ל לכל דיירי הבניין`}
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 380px) 1fr', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 390px) 1fr', gap: 24, alignItems: 'start' }}>
         
         {/* Left Side: Controls & Editor (No-Print) */}
         <div className="card no-print" style={{ padding: 22 }}>
@@ -109,101 +118,136 @@ export default function LetterWizard() {
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Active Building Indicator */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 14px',
-              borderRadius: 'var(--radius-sm)',
-              background: targetBuilding?.color?.tint || 'var(--color-gold-50)',
-              border: `1px solid ${targetBuilding?.color?.border || 'var(--color-gold-200)'}`
-            }}>
-              <div>
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)', display: 'block', fontWeight: 600 }}>
-                  מכתב מיועד עבור הבניין הפעיל:
-                </span>
-                <span style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-                  🏢 {targetBuilding ? `${targetBuilding.name} — ${targetBuilding.address}` : 'בחר בניין בסרגל העליון'}
+            
+            {/* סטטוס נמענים - גלובלי או בניין ספציפי */}
+            {isGlobalMode ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-gold-50)',
+                border: '1.5px solid var(--color-gold-300)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Layers size={20} color="var(--color-gold-600)" />
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-gold-700)', display: 'block', fontWeight: 800 }}>
+                      תפוצה רוחבית מוגדרת כעת:
+                    </span>
+                    <span style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+                      כלל 15 הבניינים המנוהלים
+                    </span>
+                  </div>
+                </div>
+                <span className="badge badge-gold" style={{ fontSize: '0.78rem' }}>מבט-על</span>
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: activeColor.tint,
+                border: `1.5px solid ${activeColor.border}`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: '50%',
+                    background: activeColor.primary,
+                    display: 'inline-block'
+                  }} />
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)', display: 'block', fontWeight: 600 }}>
+                      מכתב מיועד עבור הבניין הפעיל:
+                    </span>
+                    <span style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+                      🏢 {currentBuilding.name}
+                    </span>
+                  </div>
+                </div>
+                <span className="badge" style={{ background: activeColor.tagBg, color: activeColor.text, fontSize: '0.78rem' }}>
+                  בניין בודד
                 </span>
               </div>
-              {targetBuilding?.color && (
-                <span style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: '50%',
-                  background: targetBuilding.color.primary,
-                  display: 'inline-block'
-                }} title={`חותמת צבע: ${targetBuilding.color.name}`} />
-              )}
-            </div>
+            )}
 
             {/* Target Audience Summary */}
-            <div style={{ background: 'var(--color-gold-50)', padding: 12, borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-gold-200)', fontSize: '0.85rem' }}>
-              <div style={{ fontWeight: 700, color: 'var(--color-gold-700)', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ 
+              background: isGlobalMode ? 'var(--color-gold-50)' : activeColor.tint, 
+              padding: 12, 
+              borderRadius: 'var(--radius-sm)', 
+              border: `1px solid ${isGlobalMode ? 'var(--color-gold-200)' : activeColor.border}`, 
+              fontSize: '0.85rem' 
+            }}>
+              <div style={{ fontWeight: 700, color: isGlobalMode ? 'var(--color-gold-700)' : activeColor.text, marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Users size={15} />
-                  <span>נמענים בבניין ({tenantEmails.length} כתובות מייל):</span>
+                  <span>
+                    {isGlobalMode ? `נמענים בכלל הבניינים (${tenantEmails.length} כתובות מייל):` : `נמענים ב-${currentBuilding.name} (${tenantEmails.length} כתובות מייל):`}
+                  </span>
                 </span>
                 {tenantEmails.length > 0 && (
                   <button 
                     onClick={copyEmailsToClipboard}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-gold-700)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
-                    <Copy size={12} />
-                    <span>{copiedNotification ? 'הועתק!' : 'העתק'}</span>
+                    <Copy size={13} />
+                    <span>{copiedNotification ? "הועתק!" : "העתק הכל"}</span>
                   </button>
                 )}
               </div>
-              <div style={{ color: 'var(--color-brown-600)', wordBreak: 'break-all' }}>
+              <p style={{ color: 'var(--color-brown-600)', fontSize: '0.8rem', lineHeight: 1.4 }}>
                 {tenantEmails.length > 0 
-                  ? tenantEmails.slice(0, 3).join(', ') + (tenantEmails.length > 3 ? ` ועוד ${tenantEmails.length - 3}...` : '')
-                  : 'לא הוזנו כתובות מייל לדיירי בניין זה.'}
-              </div>
+                  ? `${tenantEmails.slice(0, 4).join(', ')}${tenantEmails.length > 4 ? ` ועוד ${tenantEmails.length - 4}...` : ''}`
+                  : (isGlobalMode ? "לא נמצאו כתובות מייל בבניינים" : "טרם עודכנו כתובות מייל לדיירי בניין זה")}
+              </p>
             </div>
 
-            {/* Category Dropdown */}
+            {/* Category Select */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-700)' }}>
-                קטגוריה ראשית:
+                קטגוריית מכתב:
               </label>
               <select
                 value={selectedCategory}
                 onChange={(e) => {
                   setSelectedCategory(e.target.value);
-                  const firstTpl = LETTER_TEMPLATES.find(t => t.category === e.target.value);
-                  if (firstTpl) handleTemplateChange(firstTpl.id);
+                  const firstInCat = LETTER_TEMPLATES.find(t => t.category === e.target.value);
+                  if (firstInCat) handleTemplateChange(firstInCat.id);
                 }}
                 className="select"
               >
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {categories.map(c => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
 
-            {/* Subcategory / Template Dropdown */}
+            {/* Template Select */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-700)' }}>
-                בחר נוסח מוכן (תבנית):
+                תבנית מוכנה:
               </label>
               <select
                 value={selectedTemplateId}
                 onChange={(e) => handleTemplateChange(e.target.value)}
                 className="select"
               >
-                {filteredTemplates.map(tpl => (
-                  <option key={tpl.id} value={tpl.id}>
-                    {tpl.subcategory} — {tpl.title}
-                  </option>
+                {filteredTemplates.map(t => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
                 ))}
               </select>
             </div>
 
-            {/* Editable Title */}
+            {/* Subject Edit */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-700)' }}>
-                כותרת המכתב / נושא המייל:
+                נושא ההודעה:
               </label>
               <input
                 type="text"
@@ -213,17 +257,17 @@ export default function LetterWizard() {
               />
             </div>
 
-            {/* Editable Content */}
+            {/* Content Edit */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-700)' }}>
-                תוכן המכתב (ניתן לעריכה חופשית):
+                גוף המכתב (ניתן לערוך):
               </label>
               <textarea
-                rows={9}
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
                 className="textarea"
-                style={{ resize: 'vertical', fontSize: '0.88rem' }}
+                rows={9}
+                style={{ fontSize: '0.88rem', lineHeight: 1.6 }}
               />
             </div>
 
@@ -232,10 +276,16 @@ export default function LetterWizard() {
               <button
                 onClick={openGmailBroadcast}
                 className="btn btn-primary"
-                style={{ padding: '14px', width: '100%' }}
+                style={{ 
+                  padding: '12px', 
+                  width: '100%', 
+                  background: isGlobalMode ? 'var(--color-gold-500)' : activeColor.primary 
+                }}
               >
-                <Mail size={18} />
-                <span>פתיחה ושליחה בתפוצה בג'ימייל (BCC)</span>
+                <Send size={18} />
+                <span>
+                  {isGlobalMode ? `שליחה ב-Gmail לכלל הדיירים (${tenantEmails.length})` : `שליחה ב-Gmail לדיירי הבניין (${tenantEmails.length})`}
+                </span>
               </button>
 
               <button
@@ -258,7 +308,7 @@ export default function LetterWizard() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '2px solid var(--color-gold-400)',
+            borderBottom: `2px solid ${isGlobalMode ? 'var(--color-gold-400)' : activeColor.primary}`,
             paddingBottom: 24,
             marginBottom: 32
           }}>
@@ -266,59 +316,56 @@ export default function LetterWizard() {
               <h2 style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--color-brown-900)', lineHeight: 1.1 }}>
                 בית ומנוחה
               </h2>
-              <div style={{ fontSize: '0.9rem', color: 'var(--color-gold-600)', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.9rem', color: isGlobalMode ? 'var(--color-gold-600)' : activeColor.primary, fontWeight: 700 }}>
                 חברה לניהול ועד בית ואחזקת מבנים
               </div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)', marginTop: 4 }}>
-                עבור: {targetBuilding ? `${targetBuilding.name} (${targetBuilding.address})` : 'דיירי הבניין'}
+              <div style={{ fontSize: '0.85rem', color: 'var(--color-brown-600)', marginTop: 4 }}>
+                {isGlobalMode 
+                  ? 'עבור: כלל דיירי הבניינים המנוהלים / לוח מודעות כללי'
+                  : `עבור: ${currentBuilding.name} (${currentBuilding.address})`}
               </div>
             </div>
 
-            <div style={{ textAlign: 'left' }}>
-              <img 
-                src="/logo.png" 
-                alt="לוגו" 
-                style={{ height: 65, width: 'auto', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-              <div style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)', marginTop: 6 }}>
-                תאריך: {new Date().toLocaleDateString('he-IL')}
-              </div>
+            <img 
+              src="/logo.png" 
+              alt="לוגו בית ומנוחה" 
+              style={{ height: 60, width: 'auto', objectFit: 'contain' }}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
+
+          {/* Letter Title */}
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <h1 style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 800, 
+              color: 'var(--color-brown-900)',
+              textDecoration: 'underline',
+              textUnderlineOffset: 6
+            }}>
+              {replaceVariables(editedTitle)}
+            </h1>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-brown-500)', marginTop: 8 }}>
+              תאריך: {new Date().toLocaleDateString('he-IL')}
             </div>
           </div>
 
           {/* Letter Body */}
-          <div style={{ padding: '10px 14px' }}>
-            {/* Title */}
-            <h3 style={{
-              fontSize: '1.45rem',
-              fontWeight: 800,
-              color: 'var(--color-brown-900)',
-              marginBottom: 24,
-              textAlign: 'center',
-              textDecoration: 'underline',
-              textUnderlineOffset: '6px',
-              textDecorationColor: 'var(--color-gold-400)'
-            }}>
-              {replaceVariables(editedTitle)}
-            </h3>
-
-            {/* Paragraphs */}
-            <div style={{
-              fontSize: '1.08rem',
-              lineHeight: 1.8,
-              color: 'var(--color-brown-800)',
-              whiteSpace: 'pre-wrap'
-            }}>
-              {replaceVariables(editedContent)}
-            </div>
+          <div style={{
+            fontSize: '1.05rem',
+            lineHeight: 1.8,
+            color: 'var(--color-brown-800)',
+            whiteSpace: 'pre-line',
+            minHeight: 280
+          }}>
+            {replaceVariables(editedContent)}
           </div>
 
           {/* Letterhead Footer */}
           <div style={{
-            marginTop: 60,
-            paddingTop: 24,
-            borderTop: '1px solid var(--color-beige-border)',
+            marginTop: 48,
+            paddingTop: 20,
+            borderTop: '1px solid var(--color-beige-divider)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -326,10 +373,10 @@ export default function LetterWizard() {
             color: 'var(--color-brown-600)'
           }}>
             <div>
-              בברכה, הנהלת בית ומנוחה | טלפון שירות וחירום: 050-0000000
+              <strong>בית ומנוחה</strong> — ניהול ועד בית, שירותי אחזקה, מעליות וגבייה
             </div>
-            <div style={{ fontWeight: 700, color: 'var(--color-gold-700)' }}>
-              איכות חיים ושקט נפשי בבניין שלכם
+            <div>
+              טלפון שירות: 050-0000000 | מייל: office@bait-umnucha.co.il
             </div>
           </div>
 
