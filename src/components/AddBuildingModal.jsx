@@ -1,10 +1,10 @@
 // ==========================================================================
 // בית ומנוחה - מודל הוספת בניין חדש (16+) עם הקצאת חותמת צבע
 // ==========================================================================
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BUILDING_COLOR_PALETTE } from '../data/initialData';
-import { Building2, X } from 'lucide-react';
+import { Building2, X, AlertCircle } from 'lucide-react';
 
 export default function AddBuildingModal({ isOpen, onClose }) {
   const { buildings, addBuilding } = useApp();
@@ -17,12 +17,30 @@ export default function AddBuildingModal({ isOpen, onClose }) {
   const [bankAccount, setBankAccount] = useState('');
   const [hiyuvitCode, setHiyuvitCode] = useState('');
   const [initialBalance, setInitialBalance] = useState('0');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // איפוס שדות בכל פעם שהחלונית נפתחת מחדש
+  useEffect(() => {
+    if (isOpen) {
+      setName('');
+      setAddress('');
+      setBankAccount('');
+      setHiyuvitCode('');
+      setInitialBalance('0');
+      setErrorMsg('');
+      const colorIdx = (buildings?.length || 0) % BUILDING_COLOR_PALETTE.length;
+      setSelectedColor(BUILDING_COLOR_PALETTE[colorIdx]);
+    }
+  }, [isOpen, buildings?.length]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      setErrorMsg('אנא הזן את שם הבניין (שדה חובה)');
+      return;
+    }
 
     addBuilding({
       name: name.trim(),
@@ -34,11 +52,6 @@ export default function AddBuildingModal({ isOpen, onClose }) {
     });
 
     onClose();
-    setName('');
-    setAddress('');
-    setBankAccount('');
-    setHiyuvitCode('');
-    setInitialBalance('0');
   };
 
   return (
@@ -57,6 +70,24 @@ export default function AddBuildingModal({ isOpen, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {errorMsg && (
+            <div style={{
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              borderRadius: 8,
+              padding: '8px 12px',
+              color: '#DC2626',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <AlertCircle size={16} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
               שם הבניין:

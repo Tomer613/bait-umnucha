@@ -42,6 +42,7 @@ function MainApp() {
     }
   };
 
+  const activeColor = currentBuilding?.color;
   const isSettings = activeTab === 'settings';
 
   return (

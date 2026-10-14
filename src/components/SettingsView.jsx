@@ -2,10 +2,11 @@
 // בית ומנוחה - מרכז הגדרות ועריכת מערכת ראשי
 // ניהול תשתית הבניינים, עריכת דירות ודיירים, והגדרות אתר מרוכזות
 // ==========================================================================
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BUILDING_COLOR_PALETTE } from '../data/initialData';
 import { formatFormattedDate } from '../utils/hebrewDate';
+import ConfirmModal from './ConfirmModal';
 import {
   Building2,
   Users,
@@ -85,17 +86,62 @@ export default function SettingsView({ onOpenAddBuilding }) {
     triggerSuccess(`פרטי בניין ${editBuildingForm.name} עודכנו בהצלחה!`);
   };
 
+  // מודל אישור מחיקה מרכזי ("אתה בטוח?")
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    title: 'אישור מחיקה',
+    question: 'אתה בטוח שברצונך למחוק?',
+    description: null,
+    subDescription: '',
+    confirmText: 'כן, מחק לצמיתות',
+    onConfirm: null
+  });
+
   const handleDeleteBuilding = (bld) => {
-    if (window.confirm(`האם אתה בטוח שברצונך למחוק את הבניין "${bld.name}"? כל הנתונים, הדירות וההיסטוריה יימחקו!`)) {
-      deleteBuilding(bld.id);
-      triggerSuccess(`הבניין "${bld.name}" נמחק מהמערכת.`);
-    }
+    const aptCount = (bld.apartments || []).length;
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'מחיקת בניין מהמערכת',
+      question: 'אתה בטוח שברצונך למחוק את הבניין?',
+      description: (
+        <div>
+          האם אתה בטוח שברצונך למחוק לצמיתות את הבניין{' '}
+          <strong style={{ color: '#0F172A', fontSize: '1.05rem' }}>"{bld.name}"</strong>
+          {bld.address ? ` (${bld.address})` : ''}?
+        </div>
+      ),
+      subDescription: `כל הנתונים, ${aptCount} הדירות והדיירים, ההוצאות, קופות הגבייה וההיסטוריה של הבניין יימחקו לצמיתות ולא ניתן יהיה לשחזרם!`,
+      confirmText: 'כן, מחק את הבניין לצמיתות',
+      onConfirm: () => {
+        deleteBuilding(bld.id);
+        triggerSuccess(`הבניין "${bld.name}" נמחק בהצלחה מהמערכת.`);
+      }
+    });
   };
+
+  // מעקב אחר הוספת בניין חדש לעדכון מיידי של הודעת הצלחה
+  const prevBldCountRef = useRef(buildings.length);
+  useEffect(() => {
+    if (buildings.length > prevBldCountRef.current) {
+      triggerSuccess('הבניין החדש נוסף בהצלחה למערכת ומוצג כעת בראש הרשימה!');
+    }
+    prevBldCountRef.current = buildings.length;
+  }, [buildings.length]);
 
   // --- מצב ניהול דירות ---
   const [activeAptBuildingId, setActiveAptBuildingId] = useState(
     selectedBuildingId !== 'all' ? selectedBuildingId : (buildings[0]?.id || '')
   );
+
+  // סנכרון אוטומטי של הבניין הפעיל בלשונית הדירות בעת שינוי או הוספת בניין
+  useEffect(() => {
+    if (selectedBuildingId && selectedBuildingId !== 'all') {
+      setActiveAptBuildingId(selectedBuildingId);
+    } else if (buildings.length > 0 && !buildings.some(b => b.id === activeAptBuildingId)) {
+      setActiveAptBuildingId(buildings[0]?.id || '');
+    }
+  }, [selectedBuildingId, buildings]);
+
   const targetBuildingForApts = buildings.find(b => b.id === activeAptBuildingId) || buildings[0] || null;
 
   // מודל הוספת דירה
@@ -153,10 +199,24 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
   const handleDeleteApt = (apt) => {
     if (!targetBuildingForApts) return;
-    if (window.confirm(`האם להסיר את דירה ${apt.aptNum} (${apt.tenantName}) מהבניין?`)) {
-      deleteApartment(targetBuildingForApts.id, apt.id);
-      triggerSuccess(`דירה ${apt.aptNum} הוסרה מהבניין.`);
-    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'הסרת דירה מהבניין',
+      question: 'אתה בטוח שברצונך להסיר דירה זו?',
+      description: (
+        <div>
+          האם אתה בטוח שברצונך להסיר את{' '}
+          <strong style={{ color: '#0F172A', fontSize: '1.05rem' }}>דירה {apt.aptNum} ({apt.tenantName})</strong>{' '}
+          מבניין "{targetBuildingForApts.name}"?
+        </div>
+      ),
+      subDescription: 'פרטי הדירה, הדייר וכל נתוני הגבייה של דירה זו יוסרו מהבניין לצמיתות.',
+      confirmText: 'כן, הסר דירה זו',
+      onConfirm: () => {
+        deleteApartment(targetBuildingForApts.id, apt.id);
+        triggerSuccess(`דירה ${apt.aptNum} (${apt.tenantName}) הוסרה מהבניין.`);
+      }
+    });
   };
 
   // חיפוש דירות
@@ -247,10 +307,35 @@ export default function SettingsView({ onOpenAddBuilding }) {
   };
 
   const handleRemovePhone = (id) => {
-    setPrefForm(prev => ({
-      ...prev,
-      phoneList: prev.phoneList.filter(item => item.id !== id)
-    }));
+    const item = prefForm.phoneList.find(p => p.id === id);
+    if (item && item.number && item.number.trim()) {
+      setDeleteConfirm({
+        isOpen: true,
+        title: 'הסרת מספר טלפון',
+        question: 'אתה בטוח שברצונך להסיר מספר זה?',
+        description: (
+          <div>
+            האם להסיר את מספר הטלפון{' '}
+            <strong style={{ color: '#0F172A', direction: 'ltr', display: 'inline-block' }}>{item.number}</strong>
+            {item.label ? ` (${item.label})` : ''} מרשימת מספרי הקשר של החברה?
+          </div>
+        ),
+        subDescription: 'המספר לא יישמר בפרטי החברה לאחר השמירה.',
+        confirmText: 'כן, הסר מספר זה',
+        onConfirm: () => {
+          setPrefForm(prev => ({
+            ...prev,
+            phoneList: prev.phoneList.filter(p => p.id !== id)
+          }));
+          triggerSuccess(`מספר הטלפון ${item.number} הוסר.`);
+        }
+      });
+    } else {
+      setPrefForm(prev => ({
+        ...prev,
+        phoneList: prev.phoneList.filter(p => p.id !== id)
+      }));
+    }
   };
 
   const handleAddEmail = () => {
@@ -269,10 +354,35 @@ export default function SettingsView({ onOpenAddBuilding }) {
   };
 
   const handleRemoveEmail = (id) => {
-    setPrefForm(prev => ({
-      ...prev,
-      emailList: prev.emailList.filter(item => item.id !== id)
-    }));
+    const item = prefForm.emailList.find(e => e.id === id);
+    if (item && item.email && item.email.trim()) {
+      setDeleteConfirm({
+        isOpen: true,
+        title: 'הסרת כתובת אימייל',
+        question: 'אתה בטוח שברצונך להסיר אימייל זה?',
+        description: (
+          <div>
+            האם להסיר את כתובת האימייל{' '}
+            <strong style={{ color: '#0F172A', direction: 'ltr', display: 'inline-block' }}>{item.email}</strong>
+            {item.label ? ` (${item.label})` : ''} מרשימת כתובות הקשר של החברה?
+          </div>
+        ),
+        subDescription: 'כתובת האימייל לא תישמר בפרטי החברה לאחר השמירה.',
+        confirmText: 'כן, הסר אימייל זה',
+        onConfirm: () => {
+          setPrefForm(prev => ({
+            ...prev,
+            emailList: prev.emailList.filter(e => e.id !== id)
+          }));
+          triggerSuccess(`כתובת האימייל ${item.email} הוסרה.`);
+        }
+      });
+    } else {
+      setPrefForm(prev => ({
+        ...prev,
+        emailList: prev.emailList.filter(e => e.id !== id)
+      }));
+    }
   };
 
   const handleSavePreferences = (e) => {
@@ -1884,6 +1994,19 @@ export default function SettingsView({ onOpenAddBuilding }) {
           </div>
         </div>
       )}
+
+      {/* מודל אישור מחיקה מרכזי ומעוצב ("אתה בטוח?") */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirm.onConfirm || (() => {})}
+        title={deleteConfirm.title}
+        question={deleteConfirm.question}
+        description={deleteConfirm.description}
+        subDescription={deleteConfirm.subDescription}
+        confirmText={deleteConfirm.confirmText}
+        isDanger={true}
+      />
 
     </div>
   );
