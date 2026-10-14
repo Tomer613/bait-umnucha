@@ -157,7 +157,7 @@ export default function Navbar({ onOpenAddBuilding }) {
             color: 'var(--color-brown-900)'
           }}>
             <UserCheck size={14} color="var(--color-gold-600)" />
-            <span>מנהל (Tomer613)</span>
+            <span>מנהל מערכת</span>
           </div>
         </div>
       </div>

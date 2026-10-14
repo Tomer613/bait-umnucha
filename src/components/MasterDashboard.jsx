@@ -373,7 +373,7 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
       }}>
         <div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-            שלום תומר, מבט-על לכלל הבניינים
+            מרכז שליטה — מבט-על לכלל הבניינים
           </h2>
           <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem' }}>
             מרכז שליטה וניהול עבור {buildings.length} הבניינים המנוהלים בחברת בית ומנוחה

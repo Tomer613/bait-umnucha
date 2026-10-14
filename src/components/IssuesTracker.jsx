@@ -68,7 +68,7 @@ export default function IssuesTracker() {
     e.preventDefault();
     if (!commentReplyText.trim() || !activeIssue) return;
 
-    addIssueComment(currentBuilding.id, activeIssue.id, "מנהל החברה (Tomer613)", commentReplyText.trim());
+    addIssueComment(currentBuilding.id, activeIssue.id, "מנהל החברה", commentReplyText.trim());
     setCommentReplyText('');
   };
 
