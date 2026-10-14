@@ -563,7 +563,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4 }}>
-                            קוד מוסד חיובית:
+                            קוד בניין בחיובית:
                           </label>
                           <input
                             type="text"
@@ -571,6 +571,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                             onChange={(e) => setEditBuildingForm({ ...editBuildingForm, hiyuvitCode: e.target.value })}
                             className="input"
                             style={{ width: '100%' }}
+                            placeholder="למשל: 643"
                           />
                         </div>
                       </div>
@@ -712,7 +713,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                         <strong style={{ color: 'var(--color-slate-800)' }}>{(bld.apartments || []).length} דירות</strong>
                       </div>
                       <div>
-                        <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>קוד חיובית:</span>
+                        <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>קוד בניין בחיובית:</span>
                         <span style={{ color: 'var(--color-slate-700)' }}>{bld.hiyuvitCode || 'ללא'}</span>
                       </div>
                       <div>

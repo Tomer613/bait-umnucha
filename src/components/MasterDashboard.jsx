@@ -134,7 +134,7 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
           <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem', margin: '6px 0 0' }}>
             {isGlobalMode
               ? `מרכז שליטה וניהול עבור כלל ${buildings.length} הבניינים המנוהלים בחברת בית ומנוחה`
-              : `📍 ${currentBuilding.address} • 🏦 ${currentBuilding.bankAccount} • קוד חיובית: ${currentBuilding.hiyuvitCode || 'לא הוגדר'}`}
+              : `📍 ${currentBuilding.address} • 🏦 ${currentBuilding.bankAccount} • קוד בניין בחיובית: ${currentBuilding.hiyuvitCode || 'לא הוגדר'}`}
           </p>
         </div>
 

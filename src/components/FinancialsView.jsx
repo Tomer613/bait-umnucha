@@ -240,7 +240,7 @@ export default function FinancialsView() {
           <p style={{ color: 'var(--color-brown-600)', fontSize: '0.92rem', margin: '6px 0 0' }}>
             {isGlobalMode
               ? "ריכוז יתרות קופה, מעקב תנועות מכלל הבניינים וקליטת דוחות סליקה ועו״ש מרוכזים."
-              : `${currentBuilding.address} | חשבון בנק: ${currentBuilding.bankAccount} | קוד חיובית: ${currentBuilding.hiyuvitCode || 'לא הוגדר'}`}
+              : `${currentBuilding.address} | חשבון בנק: ${currentBuilding.bankAccount} | קוד בניין בחיובית: ${currentBuilding.hiyuvitCode || 'לא הוגדר'}`}
           </p>
         </div>
 
@@ -405,7 +405,7 @@ export default function FinancialsView() {
                   <tr style={{ background: 'var(--color-cream-subtle)', borderBottom: '1px solid var(--color-beige-border)' }}>
                     <th style={{ padding: '12px 20px', fontWeight: 700 }}>בניין וכתובת</th>
                     <th style={{ padding: '12px 16px', fontWeight: 700 }}>חשבון בנק</th>
-                    <th style={{ padding: '12px 16px', fontWeight: 700 }}>קוד חיובית</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 700 }}>קוד בניין (חיובית)</th>
                     <th style={{ padding: '12px 16px', fontWeight: 700 }}>יתרת קופה</th>
                     <th style={{ padding: '12px 16px', fontWeight: 700 }}>סטטוס קליטה</th>
                     <th style={{ padding: '12px 20px', fontWeight: 700, textAlign: 'center' }}>פעולה</th>

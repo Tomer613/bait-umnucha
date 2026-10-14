@@ -131,7 +131,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                קוד חיובית (אם קיים):
+                קוד בניין בחיובית (אם קיים):
               </label>
               <input
                 type="text"
