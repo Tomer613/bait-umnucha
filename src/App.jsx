@@ -50,7 +50,7 @@ function MainApp() {
       minHeight: '100vh', 
       display: 'flex', 
       flexDirection: 'column', 
-      backgroundColor: isSettings ? '#0F172A' : 'var(--color-cream-bg)',
+      backgroundColor: isSettings ? '#ECE7DE' : 'var(--color-cream-bg)',
       transition: 'background-color 0.3s ease'
     }}>
       <Navbar onOpenAddBuilding={() => setIsAddBuildingOpen(true)} />
@@ -59,7 +59,7 @@ function MainApp() {
         flex: 1, 
         paddingBottom: 60,
         background: isSettings 
-          ? '#0F172A' 
+          ? '#ECE7DE' 
           : (activeColor 
               ? `linear-gradient(180deg, ${activeColor.tint} 0%, var(--color-cream-bg) 280px)` 
               : 'var(--color-cream-bg)'),
@@ -69,22 +69,22 @@ function MainApp() {
       </main>
 
       <footer style={{
-        background: isSettings ? '#0B1120' : '#FFFFFF',
-        borderTop: isSettings ? '1px solid #1E293B' : '1px solid var(--color-beige-border)',
+        background: isSettings ? '#FAF7F2' : '#FFFFFF',
+        borderTop: isSettings ? '1.5px solid #DDD6C8' : '1px solid var(--color-beige-border)',
         padding: '16px 20px',
         textAlign: 'center',
-        color: isSettings ? 'var(--color-slate-400)' : 'var(--color-brown-500)',
+        color: isSettings ? 'var(--color-brown-600)' : 'var(--color-brown-500)',
         fontSize: '0.82rem',
         transition: 'all 0.3s ease'
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span style={{ fontWeight: 700, color: isSettings ? 'var(--color-gold-400)' : 'var(--color-brown-800)' }}>בית ומנוחה</span>
+          <span style={{ fontWeight: 700, color: isSettings ? 'var(--color-gold-700)' : 'var(--color-brown-800)' }}>בית ומנוחה</span>
           <span>—</span>
           <span>ניהול ועד בית ואחזקת מבנים</span>
           {isSettings && (
             <>
               <span>•</span>
-              <span style={{ color: 'var(--color-gold-500)', fontWeight: 600 }}>אזור הגדרות ועריכת מערכת</span>
+              <span style={{ color: 'var(--color-gold-700)', fontWeight: 700 }}>אזור הגדרות ועריכת מערכת</span>
             </>
           )}
         </div>

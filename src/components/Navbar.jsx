@@ -46,12 +46,12 @@ export default function Navbar({ onOpenAddBuilding }) {
 
   return (
     <header style={{
-      background: isSettings ? '#0B1120' : '#FFFFFF',
-      borderBottom: isSettings ? '1.5px solid #1E293B' : '1px solid var(--color-beige-border)',
+      background: isSettings ? '#FAF7F2' : '#FFFFFF',
+      borderBottom: isSettings ? '2px solid var(--color-gold-500)' : '1px solid var(--color-beige-border)',
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      boxShadow: isSettings ? '0 4px 20px rgba(0,0,0,0.3)' : 'var(--shadow-sm)',
+      boxShadow: isSettings ? '0 2px 12px rgba(197, 155, 39, 0.12)' : 'var(--shadow-sm)',
       transition: 'all 0.3s ease'
     }}>
       
@@ -88,7 +88,7 @@ export default function Navbar({ onOpenAddBuilding }) {
             <h1 style={{ 
               fontSize: '1.45rem', 
               fontWeight: 800, 
-              color: isSettings ? '#FFFFFF' : 'var(--color-brown-900)',
+              color: 'var(--color-brown-900)',
               lineHeight: 1.1,
               letterSpacing: '-0.02em',
               transition: 'color 0.3s ease'
@@ -97,7 +97,7 @@ export default function Navbar({ onOpenAddBuilding }) {
             </h1>
             <p style={{ 
               fontSize: '0.82rem', 
-              color: 'var(--color-gold-500)', 
+              color: 'var(--color-gold-600)', 
               fontWeight: 600 
             }}>
               ניהול ועד בית ואחזקת מבנים
@@ -117,13 +117,13 @@ export default function Navbar({ onOpenAddBuilding }) {
               gap: 7,
               padding: '7px 16px',
               borderRadius: 'var(--radius-md)',
-              border: isSettings ? '1.5px solid var(--color-gold-400)' : '1.5px solid var(--color-border-card)',
+              border: isSettings ? '1.5px solid var(--color-gold-600)' : '1.5px solid var(--color-border-card)',
               background: isSettings ? 'var(--color-gold-500)' : '#FFFFFF',
-              color: isSettings ? '#0F172A' : 'var(--color-slate-800)',
+              color: isSettings ? '#FFFFFF' : 'var(--color-slate-800)',
               fontWeight: 800,
               fontSize: '0.86rem',
               cursor: 'pointer',
-              boxShadow: isSettings ? '0 0 14px rgba(197, 155, 39, 0.35)' : 'var(--shadow-xs)',
+              boxShadow: isSettings ? '0 2px 10px rgba(197, 155, 39, 0.35)' : 'var(--shadow-xs)',
               transition: 'all 0.2s ease'
             }}
           >
@@ -135,13 +135,13 @@ export default function Navbar({ onOpenAddBuilding }) {
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            background: isSettings ? '#1E293B' : 'var(--color-cream-subtle)',
+            background: isSettings ? '#FFFFFF' : 'var(--color-cream-subtle)',
             padding: '6px 14px',
             borderRadius: 'var(--radius-full)',
-            border: isSettings ? '1px solid #334155' : '1px solid var(--color-beige-border)',
+            border: isSettings ? '1px solid #DDD6C8' : '1px solid var(--color-beige-border)',
             fontSize: '0.82rem',
             fontWeight: 700,
-            color: isSettings ? '#F8FAFC' : 'var(--color-brown-900)',
+            color: 'var(--color-brown-900)',
             transition: 'all 0.3s ease'
           }}>
             <UserCheck size={14} color="var(--color-gold-500)" />
