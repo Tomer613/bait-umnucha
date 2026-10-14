@@ -575,22 +575,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
                         </div>
                       </div>
 
-                      {/* יתרת קופה - מוצגת לקריאה בלבד ללא אפשרות עריכה ידנית */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        background: 'var(--color-slate-50)',
-                        padding: '9px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-border-card)',
-                        fontSize: '0.82rem'
-                      }}>
-                        <span style={{ color: 'var(--color-slate-600)', fontWeight: 700 }}>יתרת קופה מחושבת:</span>
-                        <strong style={{ color: bld.currentBalance >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontSize: '0.88rem' }}>
-                          ₪{(bld.currentBalance || 0).toLocaleString()} (מחושבת מתנועות בלבד)
-                        </strong>
-                      </div>
 
                       {/* בורר צבע מותאם לבניין */}
                       <div>
@@ -715,7 +699,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
                       gap: 8,
                       margin: '14px 0',
                       background: 'var(--color-slate-50)',
@@ -726,12 +710,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
                       <div>
                         <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>דירות בבניין:</span>
                         <strong style={{ color: 'var(--color-slate-800)' }}>{(bld.apartments || []).length} דירות</strong>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>יתרת קופה:</span>
-                        <strong style={{ color: bld.currentBalance >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                          ₪{(bld.currentBalance || 0).toLocaleString()}
-                        </strong>
                       </div>
                       <div>
                         <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>קוד חיובית:</span>
