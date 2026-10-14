@@ -65,7 +65,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
     address: '',
     bankAccount: '',
     hiyuvitCode: '',
-    currentBalance: 0,
     color: null
   });
 
@@ -76,7 +75,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
       address: bld.address || '',
       bankAccount: bld.bankAccount || '',
       hiyuvitCode: bld.hiyuvitCode || '',
-      currentBalance: bld.currentBalance || 0,
       color: bld.color || BUILDING_COLOR_PALETTE[0]
     });
   };
@@ -470,17 +468,21 @@ export default function SettingsView({ onOpenAddBuilding }) {
                         </div>
                       </div>
 
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4 }}>
-                          יתרת קופה נוכחית (₪):
-                        </label>
-                        <input
-                          type="number"
-                          value={editBuildingForm.currentBalance}
-                          onChange={(e) => setEditBuildingForm({ ...editBuildingForm, currentBalance: e.target.value })}
-                          className="input"
-                          style={{ width: '100%' }}
-                        />
+                      {/* יתרת קופה - מוצגת לקריאה בלבד ללא אפשרות עריכה ידנית */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'var(--color-slate-50)',
+                        padding: '9px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border-card)',
+                        fontSize: '0.82rem'
+                      }}>
+                        <span style={{ color: 'var(--color-slate-600)', fontWeight: 700 }}>יתרת קופה מחושבת:</span>
+                        <strong style={{ color: bld.currentBalance >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontSize: '0.88rem' }}>
+                          ₪{(bld.currentBalance || 0).toLocaleString()} (מחושבת מתנועות בלבד)
+                        </strong>
                       </div>
 
                       {/* בורר צבע מותאם לבניין */}

@@ -127,15 +127,15 @@ export function AppProvider({ children }) {
     }));
   };
 
-  // עריכת פרטי בניין כלליים וצבע
+  // עריכת פרטי בניין כלליים וצבע (יתרת קופה מוגנת ואינה ניתנת לעריכה ידנית)
   const updateBuilding = (buildingId, updatedData) => {
     setBuildings(prev => prev.map(b => {
       if (b.id !== buildingId) return b;
+      const { currentBalance: _, ...safeData } = updatedData;
       return {
         ...b,
-        ...updatedData,
-        currentBalance: updatedData.currentBalance !== undefined ? parseFloat(updatedData.currentBalance) || 0 : b.currentBalance,
-        color: updatedData.color || b.color
+        ...safeData,
+        color: safeData.color || b.color
       };
     }));
   };
