@@ -164,10 +164,10 @@ export default function Navbar({ onOpenAddBuilding }) {
             <div style={{
               display: 'inline-flex',
               background: '#FFFFFF',
-              padding: 3,
+              padding: 4,
               borderRadius: 'var(--radius-full)',
-              border: `1.5px solid ${currentBuilding ? activeColor.border : 'var(--color-gold-300)'}`,
-              boxShadow: 'var(--shadow-sm)'
+              border: '1.5px solid var(--color-border-bold)',
+              boxShadow: 'var(--shadow-xs)'
             }}>
               <button
                 type="button"
@@ -176,17 +176,18 @@ export default function Navbar({ onOpenAddBuilding }) {
                 }}
                 style={{
                   border: 'none',
-                  background: selectedBuildingId === 'all' ? 'var(--color-brown-900)' : 'transparent',
-                  color: selectedBuildingId === 'all' ? '#FFFFFF' : 'var(--color-brown-700)',
-                  padding: '6px 16px',
+                  background: selectedBuildingId === 'all' ? 'var(--color-slate-900)' : 'transparent',
+                  color: selectedBuildingId === 'all' ? '#FFFFFF' : 'var(--color-slate-700)',
+                  padding: '7px 18px',
                   borderRadius: 'var(--radius-full)',
-                  fontSize: '0.86rem',
+                  fontSize: '0.88rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  transition: 'all 0.2s'
+                  transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  boxShadow: selectedBuildingId === 'all' ? '0 2px 6px rgba(15, 23, 42, 0.3)' : 'none'
                 }}
               >
                 <Building2 size={14} />
@@ -204,16 +205,17 @@ export default function Navbar({ onOpenAddBuilding }) {
                 style={{
                   border: 'none',
                   background: selectedBuildingId !== 'all' ? (activeColor.primary) : 'transparent',
-                  color: selectedBuildingId !== 'all' ? '#FFFFFF' : 'var(--color-brown-700)',
-                  padding: '6px 16px',
+                  color: selectedBuildingId !== 'all' ? '#FFFFFF' : 'var(--color-slate-700)',
+                  padding: '7px 18px',
                   borderRadius: 'var(--radius-full)',
-                  fontSize: '0.86rem',
+                  fontSize: '0.88rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  transition: 'all 0.2s'
+                  transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  boxShadow: selectedBuildingId !== 'all' ? '0 2px 6px rgba(0, 0, 0, 0.2)' : 'none'
                 }}
               >
                 <Building2 size={14} />
@@ -309,17 +311,18 @@ export default function Navbar({ onOpenAddBuilding }) {
           שורה 3: שורת לשוניות הניווט (מתחת לשורת הבניין הפעיל!)
           -------------------------------------------------------------------- */}
       <div style={{
-        background: currentBuilding ? activeColor.tint : 'var(--color-gold-50)',
-        borderTop: '1px solid rgba(0,0,0,0.04)',
+        background: '#FFFFFF',
+        borderTop: '1px solid var(--color-border-card)',
+        borderBottom: '1px solid var(--color-border-card)',
         overflowX: 'auto',
         transition: 'background 0.3s ease'
       }}>
         <div style={{
           maxWidth: 1300,
           margin: '0 auto',
-          padding: '0 20px',
+          padding: '4px 20px',
           display: 'flex',
-          gap: 6
+          gap: 8
         }}>
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -388,15 +391,17 @@ function navTabStyle(isActive, activeColor) {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    padding: '12px 16px',
-    background: 'transparent',
-    border: 'none',
-    borderBottom: isActive ? `3px solid ${activeColor.primary}` : '3px solid transparent',
-    color: isActive ? activeColor.primary : 'var(--color-brown-700)',
-    fontWeight: isActive ? 800 : 500,
-    fontSize: '0.92rem',
+    padding: '8px 16px',
+    margin: '6px 0',
+    background: isActive ? (activeColor?.tint || 'var(--color-gold-100)') : '#FFFFFF',
+    border: `1.5px solid ${isActive ? (activeColor?.primary || 'var(--color-gold-500)') : 'var(--color-border-card)'}`,
+    borderRadius: 'var(--radius-md)',
+    color: isActive ? (activeColor?.primary || 'var(--color-gold-800)') : 'var(--color-slate-700)',
+    fontWeight: isActive ? 800 : 600,
+    fontSize: '0.91rem',
     cursor: 'pointer',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap'
+    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+    whiteSpace: 'nowrap',
+    boxShadow: isActive ? '0 3px 10px rgba(197, 155, 39, 0.2)' : 'var(--shadow-xs)'
   };
 }
