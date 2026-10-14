@@ -17,6 +17,7 @@ import {
   Wallet,
   X
 } from 'lucide-react';
+import BuildingSelectDropdown from './BuildingSelectDropdown';
 
 export default function Navbar({ onOpenAddBuilding }) {
   const { 
@@ -223,77 +224,47 @@ export default function Navbar({ onOpenAddBuilding }) {
               </button>
             </div>
 
-            {/* כאשר הסוויץ' על "בניין מסוים" - מופיע הדרופליסט הנקי (רק בניינים, בלי "כל הבניינים") */}
+            {/* כאשר הסוויץ' על "בניין מסוים" - מופיע הדרופליסט המעוצב עם חותמות צבע ו-Hover מותאם אישית */}
             {selectedBuildingId !== 'all' && currentBuilding ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative', minWidth: 260, maxWidth: 380 }}>
-                  <select
-                    value={selectedBuildingId}
-                    onChange={(e) => {
-                      const newId = e.target.value;
-                      setSelectedBuildingId(newId);
-                      setLastSpecificId(newId);
-                    }}
-                    className="select"
-                    style={{
-                      fontWeight: 700,
-                      fontSize: '0.94rem',
-                      borderColor: activeColor.primary,
-                      background: '#FFFFFF',
-                      boxShadow: `0 0 0 2px ${activeColor.border}`,
-                      paddingLeft: 30,
-                      paddingRight: 12,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {buildings.map(b => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} — {b.address}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* חותמת צבע של הבניין הנבחר */}
-                <span 
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    background: activeColor.primary,
-                    border: '2px solid #FFFFFF',
-                    boxShadow: `0 0 0 1px ${activeColor.border}, 0 2px 4px rgba(0,0,0,0.15)`,
-                    display: 'inline-block'
-                  }} 
-                  title={`חותמת צבע: ${activeColor.name || ''}`}
+                <BuildingSelectDropdown
+                  buildings={buildings}
+                  selectedBuildingId={selectedBuildingId}
+                  onSelectBuilding={(newId) => {
+                    setSelectedBuildingId(newId);
+                    setLastSpecificId(newId);
+                  }}
+                  activeColor={activeColor}
                 />
 
                 {/* יתרת קופה */}
                 <span style={{
                   background: activeColor.tagBg,
                   color: activeColor.text,
-                  padding: '4px 12px',
+                  padding: '5px 14px',
                   borderRadius: 'var(--radius-full)',
-                  fontSize: '0.83rem',
+                  fontSize: '0.84rem',
                   fontWeight: 800,
-                  border: `1px solid ${activeColor.border}`,
+                  border: `1.5px solid ${activeColor.border}`,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 6
+                  gap: 6,
+                  boxShadow: 'var(--shadow-xs)'
                 }}>
-                  <Wallet size={13} />
-                  יתרת קופה: {(currentBuilding.currentBalance || 0).toLocaleString('he-IL')} ₪
+                  <Wallet size={14} />
+                  <span>יתרת קופה: {(currentBuilding.currentBalance || 0).toLocaleString('he-IL')} ₪</span>
                 </span>
 
                 {/* דירות */}
                 <span style={{
                   background: '#FFFFFF',
-                  border: `1px solid ${activeColor.border}`,
-                  padding: '4px 10px',
+                  border: `1.5px solid ${activeColor.border}`,
+                  padding: '5px 12px',
                   borderRadius: 'var(--radius-full)',
                   fontSize: '0.82rem',
                   fontWeight: 700,
-                  color: 'var(--color-brown-700)'
+                  color: 'var(--color-slate-700)',
+                  boxShadow: 'var(--shadow-xs)'
                 }}>
                   {currentBuilding.apartments?.length || 0} דירות
                 </span>
