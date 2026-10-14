@@ -57,14 +57,6 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <button
-                onClick={() => setSelectedBuildingId('all')}
-                className="btn btn-secondary btn-sm"
-                style={{ color: 'var(--color-brown-700)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                <ChevronRight size={16} />
-                <span>חזרה לכלל 15 הבניינים</span>
-              </button>
               <span 
                 className="badge" 
                 style={{ 

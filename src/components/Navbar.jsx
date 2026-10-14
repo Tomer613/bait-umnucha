@@ -1,7 +1,7 @@
 // ==========================================================================
 // בית ומנוחה - סרגל ניווט עליון יוקרתי עם שורת בניין פעיל וחותמת צבע
 // ==========================================================================
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Building2, 
@@ -28,6 +28,8 @@ export default function Navbar({ onOpenAddBuilding }) {
     setActiveTab,
     exportFullBackup
   } = useApp();
+
+  const [lastSpecificId, setLastSpecificId] = useState(buildings[0]?.id || '');
 
   const activeColor = currentBuilding?.color || {
     primary: 'var(--color-gold-500)',
@@ -136,8 +138,8 @@ export default function Navbar({ onOpenAddBuilding }) {
       </div>
 
       {/* --------------------------------------------------------------------
-          שורה 2: שורת "בניין פעיל כעת" + הדרופליסט הראשי המרכזי
-          *** נמצאת ישירות מעל שורת הלשוניות "דשבורד בניינים"! ***
+          שורה 2: שורת מצב ומעבר - סוויץ' בין "כלל הבניינים" לבין "בניין מסוים"
+          *** הדרופליסט מופיע אך ורק כאשר הסוויץ' על "בניין מסוים"! ***
           -------------------------------------------------------------------- */}
       <div style={{
         background: currentBuilding ? `linear-gradient(90deg, ${activeColor.tint} 0%, #FFFFFF 100%)` : 'linear-gradient(90deg, #FBF8F3 0%, #FFFFFF 100%)',
@@ -153,62 +155,105 @@ export default function Navbar({ onOpenAddBuilding }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 12
+          gap: 14
         }}>
-          {/* צד ימין: תווית בניין פעיל, הדרופליסט, חותמת צבע ופרטים */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', flex: '1 1 auto' }}>
+          {/* צד ימין: סוויץ' ראשי + דרופליסט (כשפעיל) + פרטים */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', flex: '1 1 auto' }}>
             
+            {/* הסוויץ' האלגנטי למעבר בין "כלל הבניינים" ל"בניין מסוים" */}
             <div style={{
               display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              background: currentBuilding ? activeColor.tagBg : 'var(--color-gold-100)',
-              color: currentBuilding ? activeColor.text : 'var(--color-gold-700)',
-              padding: '6px 12px',
+              background: '#FFFFFF',
+              padding: 3,
               borderRadius: 'var(--radius-full)',
-              fontWeight: 800,
-              fontSize: '0.86rem',
-              border: `1px solid ${activeColor.border}`,
-              whiteSpace: 'nowrap'
+              border: `1.5px solid ${currentBuilding ? activeColor.border : 'var(--color-gold-300)'}`,
+              boxShadow: 'var(--shadow-sm)'
             }}>
-              <Building2 size={16} color={activeColor.primary} />
-              <span>בניין פעיל כעת:</span>
-            </div>
-
-            {/* הדרופליסט המרכזי היחיד של הבניינים */}
-            <div style={{ position: 'relative', minWidth: 260, maxWidth: 380 }}>
-              <select
-                value={selectedBuildingId}
-                onChange={(e) => {
-                  setSelectedBuildingId(e.target.value);
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBuildingId('all');
+                  setActiveTab('dashboard');
                 }}
-                className="select"
                 style={{
-                  fontWeight: 700,
-                  fontSize: '0.94rem',
-                  borderColor: activeColor.primary,
-                  background: '#FFFFFF',
-                  boxShadow: currentBuilding ? `0 0 0 2px ${activeColor.border}` : 'var(--shadow-sm)',
-                  paddingLeft: 32,
-                  paddingRight: 14,
-                  cursor: 'pointer'
+                  border: 'none',
+                  background: selectedBuildingId === 'all' ? 'var(--color-brown-900)' : 'transparent',
+                  color: selectedBuildingId === 'all' ? '#FFFFFF' : 'var(--color-brown-700)',
+                  padding: '6px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.86rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s'
                 }}
               >
-                <option value="all">🏢 כלל 15 הבניינים (דשבורד ראשי)</option>
-                <optgroup label="בניינים מנוהלים:">
-                  {buildings.map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} — {b.address}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                <Building2 size={14} />
+                <span>כלל הבניינים</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedBuildingId === 'all') {
+                    const targetId = lastSpecificId || buildings[0]?.id || '';
+                    setSelectedBuildingId(targetId);
+                  }
+                }}
+                style={{
+                  border: 'none',
+                  background: selectedBuildingId !== 'all' ? (activeColor.primary) : 'transparent',
+                  color: selectedBuildingId !== 'all' ? '#FFFFFF' : 'var(--color-brown-700)',
+                  padding: '6px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.86rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Building2 size={14} />
+                <span>בניין מסוים</span>
+              </button>
             </div>
 
-            {/* תגיות הבניין הפעיל + חותמת צבע */}
-            {currentBuilding ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {/* עיגול חותמת צבע */}
+            {/* כאשר הסוויץ' על "בניין מסוים" - מופיע הדרופליסט הנקי (רק בניינים, בלי "כל הבניינים") */}
+            {selectedBuildingId !== 'all' && currentBuilding ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative', minWidth: 260, maxWidth: 380 }}>
+                  <select
+                    value={selectedBuildingId}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      setSelectedBuildingId(newId);
+                      setLastSpecificId(newId);
+                    }}
+                    className="select"
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.94rem',
+                      borderColor: activeColor.primary,
+                      background: '#FFFFFF',
+                      boxShadow: `0 0 0 2px ${activeColor.border}`,
+                      paddingLeft: 30,
+                      paddingRight: 12,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {buildings.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} — {b.address}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* חותמת צבע של הבניין הנבחר */}
                 <span 
                   style={{
                     width: 16,
@@ -219,9 +264,10 @@ export default function Navbar({ onOpenAddBuilding }) {
                     boxShadow: `0 0 0 1px ${activeColor.border}, 0 2px 4px rgba(0,0,0,0.15)`,
                     display: 'inline-block'
                   }} 
-                  title={`חותמת צבע הבניין: ${activeColor.name || ''}`}
+                  title={`חותמת צבע: ${activeColor.name || ''}`}
                 />
 
+                {/* יתרת קופה */}
                 <span style={{
                   background: activeColor.tagBg,
                   color: activeColor.text,
@@ -238,6 +284,7 @@ export default function Navbar({ onOpenAddBuilding }) {
                   יתרת קופה: {(currentBuilding.currentBalance || 0).toLocaleString('he-IL')} ₪
                 </span>
 
+                {/* דירות */}
                 <span style={{
                   background: '#FFFFFF',
                   border: `1px solid ${activeColor.border}`,
@@ -251,35 +298,11 @@ export default function Navbar({ onOpenAddBuilding }) {
                 </span>
               </div>
             ) : (
-              <span style={{ fontSize: '0.83rem', color: 'var(--color-brown-600)', fontWeight: 600 }}>
-                מרכז שליטה מרוכז לכלל {buildings.length} הבניינים
+              <span style={{ fontSize: '0.86rem', color: 'var(--color-brown-600)', fontWeight: 600 }}>
+                מרכז שליטה מרוכז לכלל {buildings.length} הבניינים המנוהלים
               </span>
             )}
           </div>
-
-          {/* צד שמאל: כפתור חזרה לכלל הבניינים */}
-          {currentBuilding && (
-            <button
-              onClick={() => {
-                setSelectedBuildingId('all');
-                setActiveTab('dashboard');
-              }}
-              className="btn btn-secondary btn-sm"
-              style={{
-                background: '#FFFFFF',
-                border: `1px solid ${activeColor.border}`,
-                color: 'var(--color-brown-800)',
-                fontSize: '0.82rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                fontWeight: 600
-              }}
-            >
-              <X size={15} color="var(--color-danger)" />
-              <span>חזרה לכל 15 הבניינים</span>
-            </button>
-          )}
         </div>
       </div>
 
