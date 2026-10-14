@@ -57,7 +57,7 @@ export function AppProvider({ children }) {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (!parsed.managerName || parsed.managerName === 'תומר לוי') {
+        if (!parsed.managerName) {
           parsed.managerName = 'ישי לוי';
         }
         if (!parsed.phoneCalls) {
