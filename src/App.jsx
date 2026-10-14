@@ -148,24 +148,15 @@ function MainApp() {
       <footer style={{
         background: '#FFFFFF',
         borderTop: '1px solid var(--color-beige-border)',
-        padding: '24px 20px',
+        padding: '16px 20px',
         textAlign: 'center',
-        color: 'var(--color-brown-600)',
-        fontSize: '0.85rem'
+        color: 'var(--color-brown-500)',
+        fontSize: '0.82rem'
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontWeight: 800, color: 'var(--color-brown-900)' }}>בית ומנוחה</span>
-            <span>—</span>
-            <span>ניהול ועד בית ואחזקת מבנים</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span>🔒 גיבוי נתונים מקומי מאובטח</span>
-            <span>•</span>
-            <span>📱 תואם מחשב וטאבלט אנדרואיד</span>
-            <span>•</span>
-            <span style={{ color: 'var(--color-gold-600)', fontWeight: 600 }}>0 ש״ח עלויות שרת</span>
-          </div>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span style={{ fontWeight: 700, color: 'var(--color-brown-800)' }}>בית ומנוחה</span>
+          <span>—</span>
+          <span>ניהול ועד בית ואחזקת מבנים</span>
         </div>
       </footer>
 
