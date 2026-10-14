@@ -51,6 +51,9 @@ function MainApp() {
       display: 'flex', 
       flexDirection: 'column', 
       backgroundColor: isSettings ? '#ECE7DE' : 'var(--color-cream-bg)',
+      backgroundImage: isSettings 
+        ? 'repeating-linear-gradient(-45deg, rgba(175, 158, 138, 0.22) 0px, rgba(175, 158, 138, 0.22) 1.5px, transparent 1.5px, transparent 14px)'
+        : 'none',
       transition: 'background-color 0.3s ease'
     }}>
       <Navbar onOpenAddBuilding={() => setIsAddBuildingOpen(true)} />
@@ -59,7 +62,7 @@ function MainApp() {
         flex: 1, 
         paddingBottom: 60,
         background: isSettings 
-          ? '#ECE7DE' 
+          ? 'transparent' 
           : (activeColor 
               ? `linear-gradient(180deg, ${activeColor.tint} 0%, var(--color-cream-bg) 280px)` 
               : 'var(--color-cream-bg)'),
