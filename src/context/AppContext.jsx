@@ -13,11 +13,14 @@ const DEFAULT_SETTINGS = {
   useHebrewDateDefault: true,
   hebrewDateFormat: 'both', // 'both' | 'hebrew_only' | 'gregorian_only'
   noticeHeaderPrefix: 'בס״ד',
-  noticeSignoff: 'בברכת ועד הבית וההנהלה, בית ומנוחה',
+  noticeSignoff: 'בברכת ועד הבית וההנהלה,\nבית ומנוחה',
   companyName: 'בית ומנוחה',
   managerName: 'ישי לוי',
-  companyPhone: '02-555-1234',
-  companyEmail: 'office@bait-umnucha.co.il',
+  phoneCalls: '052-7623803',
+  phoneWhatsapp: '055-6704029',
+  companyPhone: 'שיחות: 052-7623803 | וואטסאפ: 055-6704029',
+  companyEmail: 'bm4923359@gmail.com',
+  companyEmailSecondary: '9926606@gmail.com',
   defaultMonthlyDues: 300,
   enableIssuesModule: true
 };
@@ -45,7 +48,26 @@ export function AppProvider({ children }) {
     try {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        if (!parsed.managerName || parsed.managerName === 'תומר לוי') {
+          parsed.managerName = 'ישי לוי';
+        }
+        if (!parsed.phoneCalls) {
+          parsed.phoneCalls = '052-7623803';
+        }
+        if (!parsed.phoneWhatsapp) {
+          parsed.phoneWhatsapp = '055-6704029';
+        }
+        if (!parsed.companyEmail || parsed.companyEmail === 'office@bait-umnucha.co.il') {
+          parsed.companyEmail = 'bm4923359@gmail.com';
+        }
+        if (!parsed.companyEmailSecondary) {
+          parsed.companyEmailSecondary = '9926606@gmail.com';
+        }
+        if (!parsed.companyPhone || parsed.companyPhone === '02-555-1234') {
+          parsed.companyPhone = 'שיחות: 052-7623803 | וואטסאפ: 055-6704029';
+        }
+        return { ...DEFAULT_SETTINGS, ...parsed };
       }
     } catch (e) {
       console.error("Failed to load settings from localStorage:", e);

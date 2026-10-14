@@ -28,6 +28,7 @@ export default function Navbar({ onOpenAddBuilding }) {
     currentBuilding,
     activeTab, 
     setActiveTab,
+    systemSettings,
     exportFullBackup
   } = useApp();
 
@@ -139,7 +140,7 @@ export default function Navbar({ onOpenAddBuilding }) {
             color: 'var(--color-brown-900)'
           }}>
             <UserCheck size={14} color="var(--color-gold-600)" />
-            <span>מנהל מערכת</span>
+            <span>{systemSettings?.managerName || 'ישי לוי'} — מנהל מערכת</span>
           </div>
         </div>
       </div>

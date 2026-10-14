@@ -2,7 +2,7 @@
 // בית ומנוחה - מרכז הגדרות ועריכת מערכת ראשי
 // ניהול תשתית הבניינים, עריכת דירות ודיירים, והגדרות אתר מרוכזות
 // ==========================================================================
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BUILDING_COLOR_PALETTE } from '../data/initialData';
 import { formatFormattedDate } from '../utils/hebrewDate';
@@ -180,15 +180,48 @@ export default function SettingsView({ onOpenAddBuilding }) {
     noticeSignoff: systemSettings?.noticeSignoff || 'בברכת ועד הבית וההנהלה, בית ומנוחה',
     companyName: systemSettings?.companyName || 'בית ומנוחה',
     managerName: systemSettings?.managerName || 'ישי לוי',
-    companyPhone: systemSettings?.companyPhone || '02-555-1234',
-    companyEmail: systemSettings?.companyEmail || 'office@bait-umnucha.co.il',
+    phoneCalls: systemSettings?.phoneCalls || '052-7623803',
+    phoneWhatsapp: systemSettings?.phoneWhatsapp || '055-6704029',
+    companyPhone: systemSettings?.companyPhone || 'שיחות: 052-7623803 | וואטסאפ: 055-6704029',
+    companyEmail: systemSettings?.companyEmail || 'bm4923359@gmail.com',
+    companyEmailSecondary: systemSettings?.companyEmailSecondary || '9926606@gmail.com',
     defaultMonthlyDues: systemSettings?.defaultMonthlyDues || 300,
     enableIssuesModule: systemSettings?.enableIssuesModule ?? true
   });
 
+  useEffect(() => {
+    if (systemSettings) {
+      setPrefForm(prev => ({
+        ...prev,
+        useHebrewDateDefault: systemSettings.useHebrewDateDefault ?? prev.useHebrewDateDefault,
+        hebrewDateFormat: systemSettings.hebrewDateFormat || prev.hebrewDateFormat,
+        noticeHeaderPrefix: systemSettings.noticeHeaderPrefix || prev.noticeHeaderPrefix,
+        noticeSignoff: systemSettings.noticeSignoff || prev.noticeSignoff,
+        companyName: systemSettings.companyName || prev.companyName,
+        managerName: systemSettings.managerName || prev.managerName,
+        phoneCalls: systemSettings.phoneCalls || prev.phoneCalls,
+        phoneWhatsapp: systemSettings.phoneWhatsapp || prev.phoneWhatsapp,
+        companyPhone: systemSettings.companyPhone || prev.companyPhone,
+        companyEmail: systemSettings.companyEmail || prev.companyEmail,
+        companyEmailSecondary: systemSettings.companyEmailSecondary || prev.companyEmailSecondary,
+        defaultMonthlyDues: systemSettings.defaultMonthlyDues || prev.defaultMonthlyDues,
+        enableIssuesModule: systemSettings.enableIssuesModule ?? prev.enableIssuesModule
+      }));
+    }
+  }, [systemSettings]);
+
   const handleSavePreferences = (e) => {
     e.preventDefault();
-    updateSystemSettings(prefForm);
+    const phoneParts = [];
+    if (prefForm.phoneCalls?.trim()) phoneParts.push(`שיחות: ${prefForm.phoneCalls.trim()}`);
+    if (prefForm.phoneWhatsapp?.trim()) phoneParts.push(`וואטסאפ: ${prefForm.phoneWhatsapp.trim()}`);
+    const autoCompanyPhone = phoneParts.length > 0 ? phoneParts.join(' | ') : prefForm.companyPhone;
+
+    const dataToSave = {
+      ...prefForm,
+      companyPhone: prefForm.companyPhone?.trim() ? prefForm.companyPhone : autoCompanyPhone
+    };
+    updateSystemSettings(dataToSave);
     triggerSuccess('כל הגדרות המערכת והאתר נשמרו בהצלחה!');
   };
 
@@ -1312,7 +1345,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
             <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', marginBottom: 14 }}>
               פרטי חברת הניהול והוועד (מיתוג ודוחות)
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
                   שם החברה / הוועד:
@@ -1333,34 +1366,84 @@ export default function SettingsView({ onOpenAddBuilding }) {
                   type="text"
                   value={prefForm.managerName}
                   onChange={(e) => setPrefForm({ ...prefForm, managerName: e.target.value })}
+                  placeholder="ישי לוי"
                   className="input"
                   style={{ width: '100%' }}
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                  טלפון רשמי לפניות:
+                  טלפון לשיחות בלבד:
                 </label>
                 <input
                   type="text"
-                  value={prefForm.companyPhone}
-                  onChange={(e) => setPrefForm({ ...prefForm, companyPhone: e.target.value })}
+                  value={prefForm.phoneCalls}
+                  onChange={(e) => setPrefForm({ ...prefForm, phoneCalls: e.target.value })}
+                  placeholder="052-7623803"
                   className="input"
-                  style={{ width: '100%' }}
+                  dir="ltr"
+                  style={{ width: '100%', textAlign: 'right' }}
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                  דוא״ל רשמי:
+                  טלפון לוואטסאפ בלבד:
+                </label>
+                <input
+                  type="text"
+                  value={prefForm.phoneWhatsapp}
+                  onChange={(e) => setPrefForm({ ...prefForm, phoneWhatsapp: e.target.value })}
+                  placeholder="055-6704029"
+                  className="input"
+                  dir="ltr"
+                  style={{ width: '100%', textAlign: 'right' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
+                  כתובת דוא״ל ראשית:
                 </label>
                 <input
                   type="email"
                   value={prefForm.companyEmail}
                   onChange={(e) => setPrefForm({ ...prefForm, companyEmail: e.target.value })}
+                  placeholder="bm4923359@gmail.com"
                   className="input"
-                  style={{ width: '100%' }}
+                  dir="ltr"
+                  style={{ width: '100%', textAlign: 'right' }}
                 />
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
+                  כתובת דוא״ל משנית:
+                </label>
+                <input
+                  type="email"
+                  value={prefForm.companyEmailSecondary}
+                  onChange={(e) => setPrefForm({ ...prefForm, companyEmailSecondary: e.target.value })}
+                  placeholder="9926606@gmail.com"
+                  className="input"
+                  dir="ltr"
+                  style={{ width: '100%', textAlign: 'right' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
+                שורת יצירת קשר משולבת לדוחות ומכתבים:
+              </label>
+              <input
+                type="text"
+                value={prefForm.companyPhone}
+                onChange={(e) => setPrefForm({ ...prefForm, companyPhone: e.target.value })}
+                placeholder="שיחות: 052-7623803 | וואטסאפ: 055-6704029"
+                className="input"
+                style={{ width: '100%' }}
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)', marginTop: 3, display: 'block' }}>
+                ניתן לערוך ידנית, להשמיט שדות, או להשאיר ריק כדי שיופק אוטומטית ממספרי הטלפון והוואטסאפ.
+              </span>
             </div>
 
             <div style={{ marginTop: 16 }}>

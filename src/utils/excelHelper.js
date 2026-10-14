@@ -107,7 +107,7 @@ export async function readTenantExcelFile(file) {
  */
 export function exportExpensesMatrixExcel(building, year = 2026, categories = []) {
   const months = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
-  
+
   const headerRow = ["קטגוריה / סעיף הוצאה", ...months, "סך הכל שנתי"];
   const rows = [headerRow];
 

@@ -396,10 +396,14 @@ export default function LetterWizard() {
             gap: 10
           }}>
             <div>
-              <strong>{systemSettings?.companyName || 'בית ומנוחה'}</strong> — ניהול ועד בית, שירותי אחזקה, מעליות וגבייה
+              <strong>{systemSettings?.companyName || 'בית ומנוחה'}</strong>
+              {systemSettings?.managerName ? ` • מנהל: ${systemSettings.managerName}` : ''}
+              {' — ניהול ועד בית, שירותי אחזקה, מעליות וגבייה'}
             </div>
             <div>
-              טלפון שירות: {systemSettings?.companyPhone || '02-555-1234'} | מייל: {systemSettings?.companyEmail || 'office@bait-umnucha.co.il'}
+              {systemSettings?.companyPhone ? `${systemSettings.companyPhone} | ` : ''}
+              {systemSettings?.companyEmail ? `מייל: ${systemSettings.companyEmail}` : ''}
+              {systemSettings?.companyEmailSecondary ? ` / ${systemSettings.companyEmailSecondary}` : ''}
             </div>
           </div>
 
