@@ -1407,7 +1407,60 @@ export default function SettingsView({ onOpenAddBuilding }) {
             </div>
           </div>
 
-          {/* כרטיס פרטי מותג וחברה */}
+          {/* כרטיס נפרד: דמי ועד ברירת מחדל למבנים */}
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: 'var(--radius-lg)',
+            border: '1.5px solid var(--color-border-card)',
+            padding: 24,
+            marginBottom: 20,
+            boxShadow: 'var(--shadow-xs)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 38,
+                height: 38,
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--color-gold-100)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-gold-700)'
+              }}>
+                <DollarSign size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
+                  דמי ועד ברירת מחדל למבנים
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-slate-500)', margin: '2px 0 0 0' }}>
+                  סכום חודשי שיוגדר אוטומטית לדירות בעת הקמת בניין חדש במערכת (ניתן להתאמה אישית לכל דירה)
+                </p>
+              </div>
+            </div>
+
+            <div style={{ maxWidth: 280, marginTop: 14 }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-slate-700)' }}>
+                סכום דמי ועד ברירת מחדל (₪):
+              </label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  min="0"
+                  step="10"
+                  value={prefForm.defaultMonthlyDues}
+                  onChange={(e) => setPrefForm({ ...prefForm, defaultMonthlyDues: parseFloat(e.target.value) || 0 })}
+                  className="input"
+                  style={{ width: '100%', paddingLeft: 34, fontWeight: 700, fontSize: '1rem' }}
+                />
+                <span style={{ position: 'absolute', left: 12, color: 'var(--color-slate-500)', fontWeight: 700 }}>
+                  ₪
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* כרטיס פרטי מותג וחברה - הכי למטה */}
           <div style={{
             background: '#FFFFFF',
             borderRadius: 'var(--radius-lg)',
@@ -1759,19 +1812,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
               <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)', marginTop: 3, display: 'block' }}>
                 ניתן לערוך ידנית, להשמיט שדות, או להשאיר ריק כדי שיופק אוטומטית ממספרי הטלפון והוואטסאפ.
               </span>
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                דמי ועד ברירת מחדל בהקמת בניין חדש (₪):
-              </label>
-              <input
-                type="number"
-                value={prefForm.defaultMonthlyDues}
-                onChange={(e) => setPrefForm({ ...prefForm, defaultMonthlyDues: parseFloat(e.target.value) || 300 })}
-                className="input"
-                style={{ width: 140 }}
-              />
             </div>
           </div>
 
