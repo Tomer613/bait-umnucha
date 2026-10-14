@@ -1280,16 +1280,21 @@ export default function SettingsView({ onOpenAddBuilding }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                  נוסח חתימה קבוע בתחתית מודעות ומכתבים:
-                </label>
-                <input
-                  type="text"
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700 }}>
+                    נוסח חתימה קבוע בתחתית מודעות ומכתבים:
+                  </label>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--color-slate-500)' }}>
+                    (ניתן ללחוץ Enter לירידת שורה)
+                  </span>
+                </div>
+                <textarea
+                  rows={3}
                   value={prefForm.noticeSignoff}
                   onChange={(e) => setPrefForm({ ...prefForm, noticeSignoff: e.target.value })}
-                  placeholder="למשל: בברכת ועד הבית וההנהלה, בית ומנוחה"
-                  className="input"
-                  style={{ width: '100%' }}
+                  placeholder={`למשל:\nבברכת ועד הבית,\nהנהלת בית ומנוחה`}
+                  className="textarea"
+                  style={{ width: '100%', lineHeight: 1.6, resize: 'vertical' }}
                 />
               </div>
             </div>
