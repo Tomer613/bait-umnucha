@@ -2,12 +2,19 @@
 // בית ומנוחה - מנהל מצב מרכזי עם שמירה אוטומטית מקומית (LocalStorage)
 // ==========================================================================
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_BUILDINGS, EXPENSE_CATEGORIES, LETTER_TEMPLATES, BUILDING_COLOR_PALETTE, getBuildingColor } from '../data/initialData';
+import { INITIAL_BUILDINGS, BUILDING_COLOR_PALETTE, getBuildingColor } from '../data/initialData';
 
 const AppContext = createContext(null);
 
 const STORAGE_KEY = 'bait_umnucha_state_v1';
 const SETTINGS_STORAGE_KEY = 'bait_umnucha_settings_v1';
+const PRESETS_STORAGE_KEY = 'bait_umnucha_report_presets_v2';
+
+const DEFAULT_PRESETS = [
+  { id: 'pre-1', name: 'דוח הוצאות שנתי', reportType: 'expenses', includeLevies: false, entrance: 'all' },
+  { id: 'pre-2', name: 'דוח חובות + קופות מיוחדות', reportType: 'debts', includeLevies: true, entrance: 'all' },
+  { id: 'pre-3', name: 'דוח חובות כניסה א׳', reportType: 'debts', includeLevies: false, entrance: 'א' }
+];
 
 const DEFAULT_SETTINGS = {
   useHebrewDateDefault: true,
@@ -96,15 +103,33 @@ export function AppProvider({ children }) {
   });
 
   const [selectedBuildingId, setSelectedBuildingId] = useState('all');
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // ניווט: טאב ראשי + תת-לשונית (כספים → תנועות/גביות, דוחות → דוחות/מכתבים)
+  const [activeTab, setActiveTabState] = useState('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState(null);
+  const setActiveTab = (tab, subTab = null) => {
+    setActiveTabState(tab);
+    setActiveSubTab(subTab);
+  };
   const [userRole, setUserRole] = useState('admin'); // 'admin' | 'rep'
   const [currentMonth, setCurrentMonth] = useState('2026-09');
 
-  const [reportPresets, setReportPresets] = useState([
-    { id: 'pre-1', name: 'דוח אמצע חודש', funds: ['current'], scope: 'all', viewType: 'unified' },
-    { id: 'pre-2', name: 'דוח קופות גבייה מיוחד', funds: ['current', 'special'], scope: 'all', viewType: 'separate' },
-    { id: 'pre-3', name: 'דוח חצי בניין (כניסה א)', funds: ['current'], scope: 'half', viewType: 'unified' }
-  ]);
+  const [reportPresets, setReportPresets] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PRESETS_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to load report presets:", e);
+    }
+    return DEFAULT_PRESETS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(reportPresets));
+    } catch (e) {
+      console.error("Failed to save report presets:", e);
+    }
+  }, [reportPresets]);
 
   // שמירה אוטומטית של הגדרות
   useEffect(() => {
@@ -386,10 +411,13 @@ export function AppProvider({ children }) {
       const formatted = aptList.map((apt, idx) => ({
         id: `apt-${Date.now()}-${idx}`,
         aptNum: apt.aptNum,
+        floor: apt.floor || '',
+        entrance: apt.entrance || '',
         tenantName: apt.tenantName,
+        occupantType: apt.occupantType || 'שוכר',
         phone: apt.phone || '',
         email: apt.email || '',
-        monthlyDues: apt.monthlyDues || 300,
+        monthlyDues: apt.monthlyDues || systemSettings.defaultMonthlyDues || 300,
         paymentMethod: apt.paymentMethod || 'חיובית',
         debtMonths: apt.debtMonths || []
       }));
@@ -558,11 +586,15 @@ export function AppProvider({ children }) {
     const newPreset = {
       id: `pre-${Date.now()}`,
       name: presetData.name,
-      funds: presetData.funds || ['current'],
-      scope: presetData.scope || 'all',
-      viewType: presetData.viewType || 'unified'
+      reportType: presetData.reportType || 'expenses',
+      includeLevies: !!presetData.includeLevies,
+      entrance: presetData.entrance || 'all'
     };
     setReportPresets(prev => [...prev, newPreset]);
+  };
+
+  const deletePreset = (presetId) => {
+    setReportPresets(prev => prev.filter(p => p.id !== presetId));
   };
 
   // הורדת גיבוי נתונים מלא (מענה ישיר לחשש הלקוח)
@@ -584,7 +616,7 @@ export function AppProvider({ children }) {
         setBuildings(parsed);
         alert("הנתונים שוחזרו בהצלחה!");
       }
-    } catch (e) {
+    } catch {
       alert("שגיאה בפענוח קובץ הגיבוי");
     }
   };
@@ -596,6 +628,8 @@ export function AppProvider({ children }) {
     currentBuilding,
     activeTab,
     setActiveTab,
+    activeSubTab,
+    setActiveSubTab,
     userRole,
     setUserRole,
     currentMonth,
@@ -616,6 +650,7 @@ export function AppProvider({ children }) {
     addIssueComment,
     toggleIssueStatus,
     savePreset,
+    deletePreset,
     exportFullBackup,
     importFullBackup,
     systemSettings,

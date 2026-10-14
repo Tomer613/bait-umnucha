@@ -1,589 +1,398 @@
 // ==========================================================================
-// בית ומנוחה - ספריית דירות, טעינת אקסל ונוהל דיירים מתחלפים
-// מבנה ממשק אחיד, עקבי וקבוע לחלוטין בין "כלל הבניינים" לבין "בניין מסוים"
+// בית ומנוחה - דירות ודיירים: רשימה, הוספה/עריכה/מחיקה, ייבוא אקסל ונוהל החלפת דייר
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { 
-  downloadSingleBuildingTemplate, 
-  downloadMasterBuildingsTemplate, 
-  readTenantExcelFile 
+import {
+  downloadSingleBuildingTemplate,
+  downloadMasterBuildingsTemplate,
+  readTenantExcelFile
 } from '../utils/excelHelper';
-import { 
-  Users, 
-  Download, 
-  Upload, 
-  Check, 
-  UserMinus,
-  X
-} from 'lucide-react';
+import { PAYMENT_METHODS, OCCUPANT_TYPES } from '../data/initialData';
+import { Download, Upload, UserPlus, Edit3, Trash2, Repeat, Search, Users } from 'lucide-react';
+import { PageHeader, Segmented, Modal, Field, EmptyState, BuildingName, FlashMessage, useFlash } from './ui';
+import ConfirmModal from './ConfirmModal';
+import { formatILS, aptDebt, hasDebt, withBuilding, todayISO, monthName } from '../utils/format';
+
+const emptyAptForm = (defaultDues) => ({
+  aptNum: '',
+  floor: '',
+  entrance: '',
+  tenantName: '',
+  occupantType: OCCUPANT_TYPES[0],
+  phone: '',
+  email: '',
+  monthlyDues: defaultDues,
+  paymentMethod: PAYMENT_METHODS[0]
+});
 
 export default function ApartmentRegistry() {
-  const { 
-    currentBuilding, 
-    buildings, 
-    setSelectedBuildingId, 
-    selectedBuildingId,
-    importApartmentsForBuilding, 
+  const {
+    currentBuilding,
+    buildings,
+    setSelectedBuildingId,
+    systemSettings,
+    importApartmentsForBuilding,
     importMasterSheets,
-    handleTenantTurnover 
+    handleTenantTurnover,
+    addApartment,
+    updateApartment,
+    deleteApartment
   } = useApp();
 
-  const isGlobalMode = !currentBuilding || selectedBuildingId === 'all';
-
-  // מודל החלפת דייר
-  const [showTurnoverModal, setShowTurnoverModal] = useState(false);
-  const [turnoverBuildingId, setTurnoverBuildingId] = useState('');
-  const [turnoverAptId, setTurnoverAptId] = useState('');
-  const [newTenantName, setNewTenantName] = useState('');
-  const [newTenantPhone, setNewTenantPhone] = useState('');
-  const [newTenantEmail, setNewTenantEmail] = useState('');
-  const [newTenantDues, setNewTenantDues] = useState('');
-  const [newTenantPaymentMethod, setNewTenantPaymentMethod] = useState('חיובית');
-  const [moveOutDate, setMoveOutDate] = useState(new Date().toISOString().slice(0, 10));
+  const isGlobalMode = !currentBuilding;
+  const defaultDues = systemSettings?.defaultMonthlyDues || 300;
+  const [flash, showFlash] = useFlash();
 
   // חיפוש וסינון
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterDebt, setFilterDebt] = useState('all'); // 'all' | 'debt_only'
+  const [filterDebt, setFilterDebt] = useState('all'); // all | debt_only
 
-  // הודעת סטטוס
-  const [statusMsg, setStatusMsg] = useState(null);
+  // הוספה / עריכה של דירה
+  const [aptModal, setAptModal] = useState(null); // { mode: 'add'|'edit', buildingId, aptId? }
+  const [aptForm, setAptForm] = useState(emptyAptForm(defaultDues));
 
-  // העלאת קובץ אקסל דיירים
+  // החלפת דייר
+  const [turnover, setTurnover] = useState(null); // { buildingId, aptId }
+  const [newTenant, setNewTenant] = useState({ tenantName: '', phone: '', email: '', monthlyDues: '', paymentMethod: PAYMENT_METHODS[0] });
+  const [moveOutDate, setMoveOutDate] = useState(() => todayISO());
+
+  // אישור מחיקה
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // ------------------------------------------------------------------------
+  // נתונים
+  // ------------------------------------------------------------------------
+  const scopeBuildings = currentBuilding ? [currentBuilding] : buildings;
+  const apartments = scopeBuildings.flatMap(b => withBuilding(b, b.apartments));
+  const debtors = apartments.filter(hasDebt);
+  const debtTotal = debtors.reduce((sum, a) => sum + aptDebt(a), 0);
+
+  const q = searchTerm.trim().toLowerCase();
+  const filteredApartments = apartments.filter(apt => {
+    if (filterDebt === 'debt_only' && !hasDebt(apt)) return false;
+    if (!q) return true;
+    return [apt.tenantName, apt.buildingName, apt.phone, apt.email, String(apt.aptNum)]
+      .some(v => (v || '').toLowerCase().includes(q));
+  });
+
+  const findApt = (buildingId, aptId) =>
+    (buildings.find(b => b.id === buildingId)?.apartments || []).find(a => a.id === aptId);
+
+  // ------------------------------------------------------------------------
+  // פעולות
+  // ------------------------------------------------------------------------
   const handleExcelUpload = async (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
-
     try {
       const sheets = await readTenantExcelFile(file);
       const sheetNames = Object.keys(sheets);
-
       if (sheetNames.length > 1 || isGlobalMode) {
         importMasterSheets(sheets);
-        setStatusMsg(`הקובץ נקלט כקובץ מאסטר! עודכנו ${sheetNames.length} לשוניות בניינים בהצלחה.`);
+        showFlash(`קובץ המאסטר נקלט: עודכנו ${sheetNames.length} לשוניות בניינים.`);
       } else {
-        const firstSheet = sheetNames[0];
-        const apts = sheets[firstSheet];
+        const apts = sheets[sheetNames[0]];
         importApartmentsForBuilding(currentBuilding.id, apts);
-        setStatusMsg(`נקלטו בהצלחה ${apts.length} דירות לבניין ${currentBuilding.name}!`);
+        showFlash(`נקלטו ${apts.length} דירות לבניין ${currentBuilding.name}.`);
       }
-      setTimeout(() => setStatusMsg(null), 5000);
     } catch (err) {
-      setStatusMsg(`שגיאה בקריאת קובץ האקסל: ${err.message}`);
+      showFlash(`לא הצלחנו לקרוא את קובץ האקסל: ${err.message}`, 'error');
     }
-    e.target.value = '';
   };
 
-  // פתיחת מודל החלפת דייר
-  const openTurnoverModal = (apt, bId = null) => {
-    setTurnoverBuildingId(bId || currentBuilding?.id || '');
-    setTurnoverAptId(apt.id);
-    setNewTenantDues(apt.monthlyDues);
-    setShowTurnoverModal(true);
+  const openAdd = () => {
+    setAptForm(emptyAptForm(defaultDues));
+    setAptModal({ mode: 'add', buildingId: currentBuilding?.id || buildings[0]?.id || '' });
   };
 
-  // שליחת טופס החלפת דייר
+  const openEdit = (apt) => {
+    setAptForm({ ...emptyAptForm(defaultDues), ...apt });
+    setAptModal({ mode: 'edit', buildingId: apt.buildingId, aptId: apt.id });
+  };
+
+  const submitApt = (e) => {
+    e.preventDefault();
+    if (!aptModal?.buildingId || !aptForm.aptNum) return;
+    const bName = buildings.find(b => b.id === aptModal.buildingId)?.name;
+    const { buildingId: _b, buildingName: _n, buildingColor: _c, ...data } = aptForm;
+    if (aptModal.mode === 'add') {
+      addApartment(aptModal.buildingId, data);
+      showFlash(`דירה ${aptForm.aptNum} נוספה לבניין ${bName}.`);
+    } else {
+      updateApartment(aptModal.buildingId, aptModal.aptId, data);
+      showFlash(`פרטי דירה ${aptForm.aptNum} עודכנו.`);
+    }
+    setAptModal(null);
+  };
+
+  const openTurnover = (apt) => {
+    setTurnover({ buildingId: apt.buildingId, aptId: apt.id });
+    setNewTenant({ tenantName: '', phone: '', email: '', monthlyDues: apt.monthlyDues, paymentMethod: PAYMENT_METHODS[0] });
+  };
+
   const submitTurnover = (e) => {
     e.preventDefault();
-    const targetBId = turnoverBuildingId || currentBuilding?.id;
-    if (!targetBId || !turnoverAptId || !newTenantName) return;
-
+    if (!turnover || !newTenant.tenantName) return;
     handleTenantTurnover(
-      targetBId,
-      turnoverAptId,
-      {
-        tenantName: newTenantName,
-        phone: newTenantPhone,
-        email: newTenantEmail,
-        monthlyDues: parseFloat(newTenantDues) || 300,
-        paymentMethod: newTenantPaymentMethod
-      },
+      turnover.buildingId,
+      turnover.aptId,
+      { ...newTenant, monthlyDues: parseFloat(newTenant.monthlyDues) || defaultDues },
       moveOutDate
     );
-
-    setShowTurnoverModal(false);
-    setNewTenantName('');
-    setNewTenantPhone('');
-    setNewTenantEmail('');
-    setStatusMsg("נוהל החלפת הדייר הושלם: החוב ההיסטורי נשמר על הדייר היוצא, והדייר החדש נרשם עם כרטיס נקי!");
-    setTimeout(() => setStatusMsg(null), 5000);
+    setTurnover(null);
+    showFlash('הדייר הוחלף. החוב הקודם נשמר על שם הדייר היוצא, והדייר החדש מתחיל עם כרטיס נקי.');
   };
 
-  const targetBldForTurnover = buildings.find(b => b.id === (turnoverBuildingId || currentBuilding?.id));
-  const selectedAptForTurnover = (targetBldForTurnover?.apartments || []).find(a => a.id === turnoverAptId);
-
-  // הדירות הרלוונטיות לתצוגה כעת (בניין יחיד או כלל הבניינים)
-  const displayedApartments = isGlobalMode
-    ? buildings.flatMap(b => (b.apartments || []).map(apt => ({
-        ...apt,
-        buildingId: b.id,
-        buildingName: b.name,
-        buildingColor: b.color || { primary: 'var(--color-gold-500)', tint: 'var(--color-gold-50)' }
-      })))
-    : (currentBuilding?.apartments || []).map(apt => ({
-        ...apt,
-        buildingId: currentBuilding.id,
-        buildingName: currentBuilding.name,
-        buildingColor: currentBuilding.color || { primary: 'var(--color-gold-500)', tint: 'var(--color-gold-50)' }
-      }));
-
-  // סינון דיירים לפי חיפוש ומצב חוב
-  const filteredApartments = displayedApartments.filter(apt => {
-    if (filterDebt === 'debt_only' && (!apt.debtMonths || apt.debtMonths.length === 0)) {
-      return false;
-    }
-    if (!searchTerm) return true;
-    const q = searchTerm.toLowerCase();
-    return (
-      (apt.tenantName && apt.tenantName.toLowerCase().includes(q)) ||
-      (apt.buildingName && apt.buildingName.toLowerCase().includes(q)) ||
-      (apt.phone && apt.phone.includes(q)) ||
-      (apt.email && apt.email.toLowerCase().includes(q)) ||
-      String(apt.aptNum).includes(q)
-    );
-  });
-
-  const totalInDebt = displayedApartments.filter(a => a.debtMonths && a.debtMonths.length > 0).length;
-  const totalPaid = displayedApartments.length - totalInDebt;
-
-  const activeColor = currentBuilding?.color || {
-    primary: 'var(--color-gold-500)',
-    tint: 'var(--color-gold-50)',
-    border: 'var(--color-gold-300)'
-  };
+  const turnoverApt = turnover ? findApt(turnover.buildingId, turnover.aptId) : null;
+  const setField = (key) => (e) => setAptForm(prev => ({ ...prev, [key]: e.target.value }));
 
   return (
-    <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
-      
-      {/* --------------------------------------------------------------------
-          באנר ראשי עליון — מבנה קבוע ואחיד לחלוטין בשני המצבים!
-          -------------------------------------------------------------------- */}
-      <div className="card" style={{ 
-        padding: '22px 24px', 
-        marginBottom: 24, 
-        border: `1.5px solid ${isGlobalMode ? 'var(--color-gold-300)' : activeColor.border}`, 
-        background: isGlobalMode 
-          ? 'linear-gradient(135deg, #FFFFFF 0%, var(--color-gold-50) 100%)' 
-          : `linear-gradient(135deg, #FFFFFF 0%, ${activeColor.tint} 100%)` 
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span className="badge badge-gold" style={{ fontSize: '0.8rem' }}>
-                {isGlobalMode ? "מאגר דיירים מרכזי" : "ספריית דיירים פעילה"}
-              </span>
-              <span style={{ fontSize: '0.85rem', color: isGlobalMode ? 'var(--color-gold-700)' : activeColor.primary, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                {!isGlobalMode && (
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: activeColor.primary, display: 'inline-block' }} />
-                )}
-                <span>{isGlobalMode ? `כלל ${buildings.length} הבניינים המנוהלים` : currentBuilding.name}</span>
-              </span>
-            </div>
-
-            <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)', margin: 0 }}>
-              ספריית דירות ודיירים מתחלפים
-            </h2>
-
-            <p style={{ color: 'var(--color-brown-600)', fontSize: '0.92rem', margin: '6px 0 0' }}>
-              {isGlobalMode
-                ? "איתור מהיר של דיירים בכלל הבניינים, ביצוע החלפת דייר עם שמירת חובות עבר, וייבוא/ייצוא אקסל מאסטר."
-                : `ניהול דיירים, גובה דמי ועד, אופן תשלום וביצוע נוהל החלפת דייר עם שמירת היסטוריית חוב עבור ${currentBuilding.name}.`}
-            </p>
-          </div>
-
-          {/* כפתורי פעולה — זהים לחלוטין בשני המצבים */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+    <div className="page">
+      <PageHeader
+        title="דירות ודיירים"
+        subtitle={isGlobalMode ? `${apartments.length} דירות ב-${buildings.length} בניינים` : `${currentBuilding.name} · ${apartments.length} דירות`}
+        actions={
+          <>
             <button
-              onClick={() => {
-                if (isGlobalMode) {
-                  downloadMasterBuildingsTemplate(buildings);
-                } else {
-                  downloadSingleBuildingTemplate(currentBuilding.name);
-                }
-              }}
               className="btn btn-secondary"
-              title={isGlobalMode ? "הורדת תבנית אקסל רב-לשוניות לכלל הבניינים" : `הורדת תבנית אקסל ריקה לבניין ${currentBuilding?.name}`}
+              onClick={() => isGlobalMode ? downloadMasterBuildingsTemplate(buildings) : downloadSingleBuildingTemplate(currentBuilding.name)}
+              title={isGlobalMode ? 'תבנית אקסל עם לשונית לכל בניין' : 'תבנית אקסל ריקה לבניין'}
             >
-              <Download size={16} />
-              <span>{isGlobalMode ? "הורדת תבנית מאסטר (15 לשוניות)" : "הורדת תבנית אקסל לבניין"}</span>
+              <Download size={16} /> {isGlobalMode ? 'תבנית מאסטר' : 'תבנית אקסל'}
             </button>
-
-            <label 
-              className="btn btn-primary" 
-              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}
-              title="טעינת קובץ אקסל לעדכון רשימת הדיירים"
-            >
-              <Upload size={16} />
-              <span>{isGlobalMode ? "טעינת אקסל מאסטר" : "טעינת אקסל לבניין"}</span>
-              <input
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                onChange={handleExcelUpload}
-                style={{ display: 'none' }}
-              />
+            <label className="btn btn-secondary" title="טעינת קובץ אקסל לעדכון רשימת הדיירים">
+              <Upload size={16} /> ייבוא מאקסל
+              <input type="file" accept=".xlsx, .xls, .csv" hidden onChange={handleExcelUpload} />
             </label>
+            <button className="btn btn-primary" onClick={openAdd}>
+              <UserPlus size={16} /> הוספת דירה
+            </button>
+          </>
+        }
+      />
+
+      <FlashMessage flash={flash} />
+
+      <div className="card card-flush">
+        <div className="card-header">
+          <div className="row">
+            <Segmented
+              className={filterDebt === 'debt_only' ? 'seg--danger' : ''}
+              value={filterDebt}
+              onChange={setFilterDebt}
+              options={[
+                { id: 'all', label: 'כל הדירות', count: apartments.length },
+                { id: 'debt_only', label: 'בחוב', count: debtors.length }
+              ]}
+            />
+            {debtTotal > 0 && <span className="badge badge-danger">סך חובות {formatILS(debtTotal)}</span>}
           </div>
-        </div>
-      </div>
-
-      {/* הודעת סטטוס אם קיימת */}
-      {statusMsg && (
-        <div style={{
-          background: 'var(--color-gold-100)',
-          border: '1.5px solid var(--color-gold-400)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 16px',
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          color: 'var(--color-brown-900)',
-          fontWeight: 700
-        }}>
-          <Check size={20} color="var(--color-gold-600)" />
-          <span>{statusMsg}</span>
-        </div>
-      )}
-
-      {/* --------------------------------------------------------------------
-          3 אריחי מדדי המפתח (KPIs) — קבועים ונשארים תמיד בשני המצבים!
-          -------------------------------------------------------------------- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <div className="card" style={{ padding: '18px 20px', borderRight: `4px solid ${isGlobalMode ? 'var(--color-gold-500)' : activeColor.primary}` }}>
-          <span style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)', fontWeight: 600 }}>סה״כ יחידות דיור</span>
-          <div style={{ fontSize: '1.65rem', fontWeight: 900, color: 'var(--color-brown-900)', marginTop: 4 }}>
-            {displayedApartments.length} דירות
-          </div>
-          <span style={{ fontSize: '0.78rem', color: isGlobalMode ? 'var(--color-gold-700)' : activeColor.primary, fontWeight: 700 }}>
-            {isGlobalMode ? `ב-${buildings.length} בניינים מנוהלים` : `בבניין ${currentBuilding?.name}`}
-          </span>
-        </div>
-
-        <div className="card" style={{ padding: '18px 20px', borderRight: '4px solid var(--color-success)' }}>
-          <span style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)', fontWeight: 600 }}>דירות במצב תקין (משולם)</span>
-          <div style={{ fontSize: '1.65rem', fontWeight: 900, color: 'var(--color-success)', marginTop: 4 }}>
-            {totalPaid}
-          </div>
-          <span style={{ fontSize: '0.78rem', color: 'var(--color-brown-600)' }}>
-            ללא חובות פתוחים
-          </span>
-        </div>
-
-        <div className="card" style={{ padding: '18px 20px', borderRight: '4px solid var(--color-danger)' }}>
-          <span style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)', fontWeight: 600 }}>דירות בפיגור תשלומים</span>
-          <div style={{ fontSize: '1.65rem', fontWeight: 900, color: totalInDebt > 0 ? 'var(--color-danger)' : 'var(--color-success)', marginTop: 4 }}>
-            {totalInDebt}
-          </div>
-          <span style={{ fontSize: '0.78rem', color: totalInDebt > 0 ? 'var(--color-danger)' : 'var(--color-brown-600)', fontWeight: 700 }}>
-            {totalInDebt > 0 ? "נדרש טיפול גבייה" : "הגבייה סדורה לחלוטין"}
-          </span>
-        </div>
-      </div>
-
-      {/* --------------------------------------------------------------------
-          שורת חיפוש ופילטרים — קבועה ונשארת תמיד בשני המצבים!
-          -------------------------------------------------------------------- */}
-      <div className="card" style={{ padding: 18, marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
-          <div style={{ flex: '1 1 340px' }}>
+          <div className="search-box">
+            <Search size={17} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={isGlobalMode ? "חיפוש דייר לפי שם, טלפון, אימייל, מספר דירה או שם בניין..." : `חיפוש דייר ב-${currentBuilding?.name} לפי שם, טלפון, אימייל או דירה...`}
+              placeholder="חיפוש לפי שם, טלפון, אימייל או מספר דירה..."
               className="input"
-              style={{ fontSize: '0.92rem', padding: '10px 14px' }}
             />
           </div>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => setFilterDebt('all')}
-              className={`btn btn-sm ${filterDebt === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              כל הדירות ({displayedApartments.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFilterDebt('debt_only')}
-              className={`btn btn-sm ${filterDebt === 'debt_only' ? 'btn-primary' : 'btn-secondary'}`}
-              style={filterDebt === 'debt_only' ? { background: 'var(--color-danger)', borderColor: 'var(--color-danger)' } : {}}
-            >
-              דירות בחוב בלבד ({totalInDebt})
-            </button>
-          </div>
         </div>
-      </div>
 
-      {/* --------------------------------------------------------------------
-          טבלת הדיירים — מבנה עיצובי זהה לחלוטין בשני המצבים
-          -------------------------------------------------------------------- */}
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', textAlign: 'right' }}>
-            <thead>
-              <tr style={{ background: 'var(--color-gold-100)', borderBottom: '2px solid var(--color-gold-300)', color: 'var(--color-brown-900)' }}>
-                {isGlobalMode && <th style={{ padding: '12px 14px' }}>בניין</th>}
-                <th style={{ padding: '12px 14px' }}>דירה</th>
-                <th style={{ padding: '12px 14px' }}>שם דייר</th>
-                <th style={{ padding: '12px 14px' }}>טלפון</th>
-                <th style={{ padding: '12px 14px' }}>אימייל</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>דמי ועד</th>
-                <th style={{ padding: '12px 14px' }}>אופן תשלום</th>
-                <th style={{ padding: '12px 14px' }}>סטטוס חוב</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredApartments.length === 0 ? (
+        {filteredApartments.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={searchTerm || filterDebt !== 'all' ? 'לא נמצאו דירות' : 'עדיין אין דירות'}
+            text={searchTerm || filterDebt !== 'all' ? 'נסו לשנות את החיפוש או את הסינון.' : 'הוסיפו דירה ידנית או ייבאו את רשימת הדיירים מקובץ אקסל.'}
+          />
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={isGlobalMode ? 9 : 8} style={{ padding: 40, textAlign: 'center', color: 'var(--color-brown-400)' }}>
-                    {searchTerm ? "לא נמצאו דירות התואמות את החיפוש." : "טרם הוזנו דירות. ניתן לייבא מאקסל באמצעות הכפתור למעלה."}
-                  </td>
+                  {isGlobalMode && <th>בניין</th>}
+                  <th>דירה</th>
+                  <th>דייר</th>
+                  <th>טלפון</th>
+                  <th>אימייל</th>
+                  <th className="num">דמי ועד</th>
+                  <th>תשלום</th>
+                  <th>מצב חוב</th>
+                  <th className="col-center">פעולות</th>
                 </tr>
-              ) : (
-                filteredApartments.map((apt, idx) => {
-                  const debtCount = apt.debtMonths?.length || 0;
-                  const debtSum = debtCount * (apt.monthlyDues || 0);
-
+              </thead>
+              <tbody>
+                {filteredApartments.map(apt => {
+                  const debt = hasDebt(apt);
+                  const location = [apt.entrance && `כניסה ${apt.entrance}`, apt.floor && `קומה ${apt.floor}`].filter(Boolean).join(' · ');
                   return (
-                    <tr
-                      key={`${apt.buildingId}-${apt.id}`}
-                      style={{
-                        borderBottom: '1px solid var(--color-beige-divider)',
-                        background: debtCount > 0 ? 'var(--color-danger-bg)' : idx % 2 === 0 ? '#FFFFFF' : 'var(--color-gold-50)'
-                      }}
-                    >
-                      {/* עמודת בניין (מוצגת במצב כלל הבניינים) */}
+                    <tr key={`${apt.buildingId}-${apt.id}`} className={debt ? 'row-alert' : ''}>
                       {isGlobalMode && (
-                        <td style={{ padding: '12px 14px', fontWeight: 800 }}>
-                          <button
-                            onClick={() => setSelectedBuildingId(apt.buildingId)}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              padding: 0,
-                              fontFamily: 'inherit',
-                              fontSize: 'inherit',
-                              fontWeight: 800,
-                              color: 'var(--color-brown-900)'
-                            }}
-                            title={`מעבר לניהול בניין ${apt.buildingName}`}
-                          >
-                            <span style={{
-                              width: 10,
-                              height: 10,
-                              borderRadius: '50%',
-                              background: apt.buildingColor.primary,
-                              display: 'inline-block'
-                            }} />
-                            <span style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>{apt.buildingName}</span>
-                          </button>
-                        </td>
+                        <td><BuildingName name={apt.buildingName} color={apt.buildingColor} onClick={() => setSelectedBuildingId(apt.buildingId)} /></td>
                       )}
-
-                      <td style={{ padding: '12px 14px', fontWeight: 700 }}>
-                        דירה {apt.aptNum}
+                      <td className="cell-strong">{apt.aptNum}{location && <span className="cell-sub">{location}</span>}</td>
+                      <td>
+                        <span className="cell-strong">{apt.tenantName || 'לא הוזן'}</span>
+                        <span className="cell-sub">{apt.occupantType || 'שוכר'}</span>
                       </td>
-
-                      <td style={{ padding: '12px 14px', fontWeight: 600 }}>
-                        {apt.tenantName}
-                      </td>
-
-                      <td style={{ padding: '12px 14px' }}>
-                        {apt.phone ? (
-                          <a href={`tel:${apt.phone}`} style={{ color: 'var(--color-gold-700)', textDecoration: 'none', fontWeight: 600 }}>
-                            {apt.phone}
-                          </a>
-                        ) : '—'}
-                      </td>
-
-                      <td style={{ padding: '12px 14px', color: 'var(--color-brown-600)', fontSize: '0.82rem' }}>
-                        {apt.email || '—'}
-                      </td>
-
-                      <td style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 700 }}>
-                        {apt.monthlyDues} ₪
-                      </td>
-
-                      <td style={{ padding: '12px 14px' }}>
-                        <span className="badge badge-neutral" style={{ fontSize: '0.78rem' }}>
-                          {apt.paymentMethod || 'חיובית'}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '12px 14px' }}>
-                        {debtCount > 0 ? (
-                          <span style={{ color: 'var(--color-danger)', fontWeight: 700, fontSize: '0.82rem' }}>
-                            {debtCount} חודשים ({debtSum.toLocaleString('he-IL')} ₪)
+                      <td>{apt.phone ? <a href={`tel:${apt.phone}`} className="ltr" style={{ textDecoration: 'none', fontWeight: 500 }}>{apt.phone}</a> : <span className="muted">—</span>}</td>
+                      <td className="muted" style={{ fontSize: '0.84rem' }}>{apt.email || '—'}</td>
+                      <td className="num">{formatILS(apt.monthlyDues)}</td>
+                      <td><span className="badge badge-neutral">{apt.paymentMethod || 'חיובית'}</span></td>
+                      <td>
+                        {debt ? (
+                          <span className="amount-out" title={apt.debtMonths.map(monthName).join(', ')}>
+                            {formatILS(aptDebt(apt))}
+                            <span className="cell-sub">{apt.debtMonths.length} חודשים</span>
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '0.82rem' }}>
-                            ✓ תקין
-                          </span>
+                          <span className="badge badge-success">תקין</span>
                         )}
                       </td>
-
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        <button
-                          onClick={() => openTurnoverModal(apt, apt.buildingId)}
-                          className="btn btn-secondary btn-sm"
-                          style={{ fontSize: '0.78rem', padding: '4px 8px' }}
-                          title="ביצוע נוהל החלפת דייר לדירה זו"
-                        >
-                          <UserMinus size={13} />
-                          <span>החלפת דייר</span>
-                        </button>
+                      <td className="cell-actions">
+                        <div>
+                          <button className="btn btn-secondary btn-sm btn-icon" title="עריכת פרטי הדירה" onClick={() => openEdit(apt)}><Edit3 size={14} /></button>
+                          <button className="btn btn-secondary btn-sm btn-icon" title="החלפת דייר" onClick={() => openTurnover(apt)}><Repeat size={14} /></button>
+                          <button className="btn btn-danger btn-sm btn-icon" title="מחיקת הדירה" onClick={() => setDeleteTarget(apt)}><Trash2 size={14} /></button>
+                        </div>
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* --------------------------------------------------------------------
-          מודל: נוהל החלפת דייר עם שמירת היסטוריית חוב
-          -------------------------------------------------------------------- */}
-      {showTurnoverModal && (
-        <div className="modal-overlay" onClick={() => setShowTurnoverModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-brown-900)', margin: 0 }}>
-                נוהל החלפת דייר — דירה {selectedAptForTurnover?.aptNum} ({targetBldForTurnover?.name})
-              </h3>
-              <button onClick={() => setShowTurnoverModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {selectedAptForTurnover && (
-              <div style={{
-                background: 'var(--color-danger-bg)',
-                border: '1px solid var(--color-danger-border)',
-                padding: 12,
-                borderRadius: 'var(--radius-sm)',
-                marginBottom: 16,
-                fontSize: '0.85rem'
-              }}>
-                <div style={{ fontWeight: 700, color: 'var(--color-danger)', marginBottom: 4 }}>
-                  פרטי דייר יוצא: {selectedAptForTurnover.tenantName}
-                </div>
-                <div>
-                  חודשי חוב מצטברים: {selectedAptForTurnover.debtMonths?.length || 0} חודשים
-                  ({((selectedAptForTurnover.debtMonths?.length || 0) * (selectedAptForTurnover.monthlyDues || 0)).toLocaleString('he-IL')} ₪).
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-brown-600)', marginTop: 4 }}>
-                  חובות אלו יישארו שמורים על שמו של הדייר היוצא לצורך המשך טיפול, והדייר החדש יתחיל עם דף נקי.
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={submitTurnover} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                  שם הדייר החדש (שוכר / רוכש):
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newTenantName}
-                  onChange={(e) => setNewTenantName(e.target.value)}
-                  className="input"
-                  placeholder="למשל: משה לוי"
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                    טלפון:
-                  </label>
-                  <input
-                    type="tel"
-                    value={newTenantPhone}
-                    onChange={(e) => setNewTenantPhone(e.target.value)}
-                    className="input"
-                    placeholder="050-0000000"
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                    אימייל:
-                  </label>
-                  <input
-                    type="email"
-                    value={newTenantEmail}
-                    onChange={(e) => setNewTenantEmail(e.target.value)}
-                    className="input"
-                    placeholder="email@example.com"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                    דמי ועד חודשיים (₪):
-                  </label>
-                  <input
-                    type="number"
-                    value={newTenantDues}
-                    onChange={(e) => setNewTenantDues(e.target.value)}
-                    className="input"
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                    אופן תשלום עיקרי:
-                  </label>
-                  <select
-                    value={newTenantPaymentMethod}
-                    onChange={(e) => setNewTenantPaymentMethod(e.target.value)}
-                    className="select"
-                  >
-                    <option value="חיובית">חיובית (אשראי / מס"ב)</option>
-                    <option value="העברה בנקאית">העברה בנקאית ישירה</option>
-                    <option value="מזומן">מזומן</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
-                  תאריך כניסה לתוקף:
-                </label>
-                <input
-                  type="date"
-                  value={moveOutDate}
-                  onChange={(e) => setMoveOutDate(e.target.value)}
-                  className="input"
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
-                <button type="button" onClick={() => setShowTurnoverModal(false)} className="btn btn-secondary">
-                  ביטול
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  בצע החלפת דייר
-                </button>
-              </div>
-            </form>
+      {/* מודל: הוספה / עריכה */}
+      <Modal
+        isOpen={!!aptModal}
+        onClose={() => setAptModal(null)}
+        title={aptModal?.mode === 'edit' ? `עריכת דירה ${aptForm.aptNum}` : 'הוספת דירה'}
+        subtitle={aptModal && !isGlobalMode ? currentBuilding.name : undefined}
+      >
+        <form onSubmit={submitApt} className="form-stack">
+          {aptModal?.mode === 'add' && isGlobalMode && (
+            <Field label="בניין">
+              <select className="select" value={aptModal.buildingId} onChange={(e) => setAptModal(prev => ({ ...prev, buildingId: e.target.value }))}>
+                {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </Field>
+          )}
+          <div className="field-row">
+            <Field label="מספר דירה *">
+              <input type="text" required value={aptForm.aptNum} onChange={setField('aptNum')} className="input" placeholder="12" />
+            </Field>
+            <Field label="כניסה">
+              <input type="text" value={aptForm.entrance} onChange={setField('entrance')} className="input" placeholder="א" />
+            </Field>
+            <Field label="קומה">
+              <input type="text" value={aptForm.floor} onChange={setField('floor')} className="input" placeholder="3" />
+            </Field>
           </div>
-        </div>
-      )}
+          <div className="field-row">
+            <Field label="שם הדייר">
+              <input type="text" value={aptForm.tenantName} onChange={setField('tenantName')} className="input" placeholder="שם מלא או משפחה" />
+            </Field>
+            <Field label="סוג מגורים">
+              <select value={aptForm.occupantType} onChange={setField('occupantType')} className="select">
+                {OCCUPANT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="field-row">
+            <Field label="טלפון">
+              <input type="tel" value={aptForm.phone} onChange={setField('phone')} className="input ltr" placeholder="050-0000000" />
+            </Field>
+            <Field label="אימייל">
+              <input type="email" value={aptForm.email} onChange={setField('email')} className="input ltr" placeholder="name@example.com" />
+            </Field>
+          </div>
+          <div className="field-row">
+            <Field label="דמי ועד חודשיים (₪) *">
+              <input type="number" required min="0" value={aptForm.monthlyDues} onChange={setField('monthlyDues')} className="input" />
+            </Field>
+            <Field label="אופן תשלום">
+              <select value={aptForm.paymentMethod} onChange={setField('paymentMethod')} className="select">
+                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="modal-actions">
+            <button type="submit" className="btn btn-primary">{aptModal?.mode === 'edit' ? 'שמירת השינויים' : 'הוספת הדירה'}</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setAptModal(null)}>ביטול</button>
+          </div>
+        </form>
+      </Modal>
 
+      {/* מודל: החלפת דייר */}
+      <Modal
+        isOpen={!!turnover}
+        onClose={() => setTurnover(null)}
+        title={`החלפת דייר · דירה ${turnoverApt?.aptNum || ''}`}
+        subtitle={buildings.find(b => b.id === turnover?.buildingId)?.name}
+      >
+        {turnoverApt && (
+          <div className={`alert ${hasDebt(turnoverApt) ? 'alert-warning' : 'alert-info'}`} style={{ marginBottom: 16, alignItems: 'flex-start' }}>
+            <div>
+              <strong>דייר יוצא: {turnoverApt.tenantName}</strong>
+              <div style={{ fontSize: '0.85rem', marginTop: 2 }}>
+                {hasDebt(turnoverApt)
+                  ? `חוב פתוח של ${formatILS(aptDebt(turnoverApt))} (${turnoverApt.debtMonths.length} חודשים) יישאר על שמו ויוצג בהיסטוריה.`
+                  : 'אין לדייר חוב פתוח.'}
+                {' '}הדייר החדש מתחיל עם כרטיס נקי.
+              </div>
+            </div>
+          </div>
+        )}
+        <form onSubmit={submitTurnover} className="form-stack">
+          <Field label="שם הדייר החדש *">
+            <input type="text" required value={newTenant.tenantName} onChange={(e) => setNewTenant(p => ({ ...p, tenantName: e.target.value }))} className="input" placeholder="שוכר או רוכש" />
+          </Field>
+          <div className="field-row">
+            <Field label="טלפון">
+              <input type="tel" value={newTenant.phone} onChange={(e) => setNewTenant(p => ({ ...p, phone: e.target.value }))} className="input ltr" placeholder="050-0000000" />
+            </Field>
+            <Field label="אימייל">
+              <input type="email" value={newTenant.email} onChange={(e) => setNewTenant(p => ({ ...p, email: e.target.value }))} className="input ltr" placeholder="name@example.com" />
+            </Field>
+          </div>
+          <div className="field-row">
+            <Field label="דמי ועד (₪)">
+              <input type="number" value={newTenant.monthlyDues} onChange={(e) => setNewTenant(p => ({ ...p, monthlyDues: e.target.value }))} className="input" />
+            </Field>
+            <Field label="אופן תשלום">
+              <select value={newTenant.paymentMethod} onChange={(e) => setNewTenant(p => ({ ...p, paymentMethod: e.target.value }))} className="select">
+                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </Field>
+            <Field label="תאריך המעבר">
+              <input type="date" value={moveOutDate} onChange={(e) => setMoveOutDate(e.target.value)} className="input" />
+            </Field>
+          </div>
+          <div className="modal-actions">
+            <button type="submit" className="btn btn-primary">ביצוע ההחלפה</button>
+            <button type="button" onClick={() => setTurnover(null)} className="btn btn-secondary">ביטול</button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          deleteApartment(deleteTarget.buildingId, deleteTarget.id);
+          showFlash(`דירה ${deleteTarget.aptNum} הוסרה מבניין ${deleteTarget.buildingName}.`);
+        }}
+        title="מחיקת דירה"
+        question={`למחוק את דירה ${deleteTarget?.aptNum || ''}?`}
+        description={deleteTarget ? `${deleteTarget.tenantName || 'ללא שם'} · ${deleteTarget.buildingName}` : ''}
+        subDescription="פרטי הדירה, הדייר ונתוני הגבייה שלה יימחקו לצמיתות."
+        confirmText="מחיקת הדירה"
+      />
     </div>
   );
 }

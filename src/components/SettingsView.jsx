@@ -1,47 +1,36 @@
 // ==========================================================================
 // בית ומנוחה - מרכז הגדרות ועריכת מערכת ראשי
-// ניהול תשתית הבניינים, עריכת דירות ודיירים, והגדרות אתר מרוכזות
+// ניהול הבניינים, פרטי החברה והמכתבים, וגיבוי (ניהול הדירות נמצא במסך הדיירים)
 // ==========================================================================
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BUILDING_COLOR_PALETTE } from '../data/initialData';
 import { formatFormattedDate } from '../utils/hebrewDate';
 import ConfirmModal from './ConfirmModal';
+import { PageHeader, SubTabs, FlashMessage } from './ui';
 import {
   Building2,
-  Users,
   Sliders,
   ShieldCheck,
   PlusCircle,
   Edit3,
   Trash2,
   Check,
-  ArrowRight,
   Download,
   Upload,
   Save,
   X,
   Calendar,
-  Palette,
-  Home,
   Phone,
   Mail,
-  DollarSign,
-  AlertTriangle,
-  FileSpreadsheet
+  DollarSign
 } from 'lucide-react';
 
 export default function SettingsView({ onOpenAddBuilding }) {
   const {
     buildings,
-    selectedBuildingId,
-    setSelectedBuildingId,
-    setActiveTab,
     updateBuilding,
     deleteBuilding,
-    addApartment,
-    updateApartment,
-    deleteApartment,
     systemSettings,
     updateSystemSettings,
     exportFullBackup,
@@ -49,7 +38,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
   } = useApp();
 
   // לשונית פנימית פעילה בתוך מרכז ההגדרות
-  const [innerTab, setInnerTab] = useState('buildings'); // 'buildings' | 'apartments' | 'preferences' | 'backup'
+  const [innerTab, setInnerTab] = useState('buildings'); // 'buildings' | 'preferences' | 'backup'
 
   // הודעת סטטוס והצלחה
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
@@ -127,110 +116,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
     }
     prevBldCountRef.current = buildings.length;
   }, [buildings.length]);
-
-  // --- מצב ניהול דירות ---
-  const [activeAptBuildingId, setActiveAptBuildingId] = useState(
-    selectedBuildingId !== 'all' ? selectedBuildingId : (buildings[0]?.id || '')
-  );
-
-  // סנכרון אוטומטי של הבניין הפעיל בלשונית הדירות בעת שינוי או הוספת בניין
-  useEffect(() => {
-    if (selectedBuildingId && selectedBuildingId !== 'all') {
-      setActiveAptBuildingId(selectedBuildingId);
-    } else if (buildings.length > 0 && !buildings.some(b => b.id === activeAptBuildingId)) {
-      setActiveAptBuildingId(buildings[0]?.id || '');
-    }
-  }, [selectedBuildingId, buildings]);
-
-  const targetBuildingForApts = buildings.find(b => b.id === activeAptBuildingId) || buildings[0] || null;
-
-  // מודל הוספת דירה
-  const [isAddAptOpen, setIsAddAptOpen] = useState(false);
-  const [newAptForm, setNewAptForm] = useState({
-    aptNum: '',
-    floor: '',
-    entrance: '',
-    tenantName: '',
-    occupantType: 'שוכר',
-    phone: '',
-    email: '',
-    monthlyDues: systemSettings?.defaultMonthlyDues || 300,
-    paymentMethod: 'חיובית',
-    parking: '',
-    notes: ''
-  });
-
-  const handleAddApartment = (e) => {
-    e.preventDefault();
-    if (!targetBuildingForApts || !newAptForm.aptNum) return;
-    addApartment(targetBuildingForApts.id, newAptForm);
-    setIsAddAptOpen(false);
-    setNewAptForm({
-      aptNum: '',
-      floor: '',
-      entrance: '',
-      tenantName: '',
-      occupantType: 'שוכר',
-      phone: '',
-      email: '',
-      monthlyDues: systemSettings?.defaultMonthlyDues || 300,
-      paymentMethod: 'חיובית',
-      parking: '',
-      notes: ''
-    });
-    triggerSuccess(`דירה ${newAptForm.aptNum} נוספה בהצלחה לבניין ${targetBuildingForApts.name}!`);
-  };
-
-  // עריכת דירה קיימת
-  const [editingAptId, setEditingAptId] = useState(null);
-  const [editAptForm, setEditAptForm] = useState({});
-
-  const startEditApt = (apt) => {
-    setEditingAptId(apt.id);
-    setEditAptForm({ ...apt });
-  };
-
-  const handleSaveApt = (aptId) => {
-    if (!targetBuildingForApts) return;
-    updateApartment(targetBuildingForApts.id, aptId, editAptForm);
-    setEditingAptId(null);
-    triggerSuccess(`פרטי דירה ${editAptForm.aptNum} עודכנו בהצלחה!`);
-  };
-
-  const handleDeleteApt = (apt) => {
-    if (!targetBuildingForApts) return;
-    setDeleteConfirm({
-      isOpen: true,
-      title: 'הסרת דירה מהבניין',
-      question: 'אתה בטוח שברצונך להסיר דירה זו?',
-      description: (
-        <div>
-          האם אתה בטוח שברצונך להסיר את{' '}
-          <strong style={{ color: '#0F172A', fontSize: '1.05rem' }}>דירה {apt.aptNum} ({apt.tenantName})</strong>{' '}
-          מבניין "{targetBuildingForApts.name}"?
-        </div>
-      ),
-      subDescription: 'פרטי הדירה, הדייר וכל נתוני הגבייה של דירה זו יוסרו מהבניין לצמיתות.',
-      confirmText: 'כן, הסר דירה זו',
-      onConfirm: () => {
-        deleteApartment(targetBuildingForApts.id, apt.id);
-        triggerSuccess(`דירה ${apt.aptNum} (${apt.tenantName}) הוסרה מהבניין.`);
-      }
-    });
-  };
-
-  // חיפוש דירות
-  const [aptSearch, setAptSearch] = useState('');
-  const filteredApartments = (targetBuildingForApts?.apartments || []).filter(a => {
-    if (!aptSearch.trim()) return true;
-    const term = aptSearch.trim().toLowerCase();
-    return (
-      (a.aptNum + '').includes(term) ||
-      (a.tenantName || '').toLowerCase().includes(term) ||
-      (a.phone || '').includes(term) ||
-      (a.email || '').toLowerCase().includes(term)
-    );
-  });
 
   // --- הגדרות מערכת ואתר ---
   const [prefForm, setPrefForm] = useState(() => {
@@ -410,127 +295,24 @@ export default function SettingsView({ onOpenAddBuilding }) {
   };
 
   return (
-    <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
+    <div className="page">
 
-      {/* --------------------------------------------------------------------
-          באנר עליון: כותרת המרכז + כפתור חזרה למערכת הראשית
-          -------------------------------------------------------------------- */}
-      <div style={{
-        background: '#FFFFFF',
-        borderRadius: 'var(--radius-xl)',
-        border: '1.5px solid var(--color-border-card)',
-        padding: '24px 28px',
-        boxShadow: 'var(--shadow-md)',
-        marginBottom: 24,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{
-            width: 52,
-            height: 52,
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--color-gold-100)',
-            border: '1.5px solid var(--color-gold-300)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-gold-700)',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <Sliders size={26} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
-                מרכז הגדרות ועריכת מערכת
-              </h1>
-              <span style={{
-                background: 'var(--color-gold-100)',
-                color: 'var(--color-gold-800)',
-                border: '1px solid var(--color-gold-300)',
-                padding: '2px 10px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.78rem',
-                fontWeight: 700
-              }}>
-                אזור תשתית וניהול
-              </span>
-            </div>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'var(--color-slate-600)' }}>
-              עריכה מרוכזת של תשתיות הבניינים, מבנה הדירות והדיירים, והגדרות אתר ותאריכים
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="הגדרות"
+        subtitle="בניינים, פרטי החברה ומכתבים, וגיבוי הנתונים"
+      />
 
-      {/* הודעת הצלחה צפה */}
-      {saveSuccessMsg && (
-        <div style={{
-          background: 'var(--color-success-bg)',
-          border: '1.5px solid var(--color-success-border)',
-          color: 'var(--color-success)',
-          padding: '12px 20px',
-          borderRadius: 'var(--radius-md)',
-          marginBottom: 20,
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          boxShadow: 'var(--shadow-sm)',
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          <Check size={18} />
-          <span>{saveSuccessMsg}</span>
-        </div>
-      )}
+      <FlashMessage flash={saveSuccessMsg ? { text: saveSuccessMsg, type: 'success' } : null} />
 
-      {/* --------------------------------------------------------------------
-          לשוניות ניווט פנימיות של מרכז ההגדרות
-          -------------------------------------------------------------------- */}
-      <div style={{
-        display: 'flex',
-        gap: 10,
-        marginBottom: 24,
-        borderBottom: '2px solid var(--color-border-card)',
-        paddingBottom: 12,
-        overflowX: 'auto'
-      }}>
-        <button
-          onClick={() => setInnerTab('buildings')}
-          style={innerTabBtnStyle(innerTab === 'buildings')}
-        >
-          <Building2 size={18} />
-          <span>ניהול ועריכת בניינים ({buildings.length})</span>
-        </button>
-
-        <button
-          onClick={() => setInnerTab('apartments')}
-          style={innerTabBtnStyle(innerTab === 'apartments')}
-        >
-          <Users size={18} />
-          <span>ניהול דירות ודיירים</span>
-        </button>
-
-        <button
-          onClick={() => setInnerTab('preferences')}
-          style={innerTabBtnStyle(innerTab === 'preferences')}
-        >
-          <Sliders size={18} />
-          <span>הגדרות אתר ותאריך עברי</span>
-        </button>
-
-        <button
-          onClick={() => setInnerTab('backup')}
-          style={innerTabBtnStyle(innerTab === 'backup')}
-        >
-          <ShieldCheck size={18} />
-          <span>גיבוי ושחזור נתונים</span>
-        </button>
-      </div>
+      <SubTabs
+        active={innerTab}
+        onChange={setInnerTab}
+        tabs={[
+          { id: 'buildings', label: `בניינים (${buildings.length})`, icon: Building2 },
+          { id: 'preferences', label: 'פרטי החברה ומכתבים', icon: Sliders },
+          { id: 'backup', label: 'גיבוי ושחזור', icon: ShieldCheck }
+        ]}
+      />
 
       {/* ====================================================================
           לשונית 1: ניהול ועריכת בניינים
@@ -828,480 +610,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* ====================================================================
-          לשונית 2: ניהול דירות ודיירים
-          ==================================================================== */}
-      {innerTab === 'apartments' && (
-        <div>
-          {/* סרגל בחירת בניין + פעולות */}
-          <div style={{
-            background: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1.5px solid var(--color-border-card)',
-            padding: '20px 24px',
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 16
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <label style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-slate-900)' }}>
-                בחר בניין לעריכת דירותיו:
-              </label>
-              <select
-                value={activeAptBuildingId}
-                onChange={(e) => setActiveAptBuildingId(e.target.value)}
-                className="input"
-                style={{
-                  minWidth: 240,
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                  borderColor: targetBuildingForApts?.color?.primary || 'var(--color-border-card)'
-                }}
-              >
-                {buildings.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({(b.apartments || []).length} דירות)
-                  </option>
-                ))}
-              </select>
-
-              {targetBuildingForApts && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  background: targetBuildingForApts.color?.tint || 'var(--color-slate-100)',
-                  border: `1px solid ${targetBuildingForApts.color?.border || 'var(--color-border-card)'}`,
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '0.84rem',
-                  fontWeight: 700,
-                  color: targetBuildingForApts.color?.text || 'var(--color-slate-800)'
-                }}>
-                  <span>סה״כ {(targetBuildingForApts.apartments || []).length} דירות</span>
-                  <span>•</span>
-                  <span>
-                    צפי דמי ועד חודשי: ₪{(targetBuildingForApts.apartments || []).reduce((acc, a) => acc + (a.monthlyDues || 0), 0).toLocaleString()}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => setIsAddAptOpen(true)}
-              className="btn btn-primary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 20px',
-                fontWeight: 700,
-                fontSize: '0.92rem'
-              }}
-            >
-              <PlusCircle size={18} />
-              <span>הוספת דירה לבניין</span>
-            </button>
-          </div>
-
-          {/* סינון וחיפוש דירות */}
-          <div style={{ marginBottom: 16 }}>
-            <input
-              type="text"
-              placeholder="חיפוש מהיר לפי מספר דירה, שם דייר, טלפון או מייל..."
-              value={aptSearch}
-              onChange={(e) => setAptSearch(e.target.value)}
-              className="input"
-              style={{ width: '100%', maxWidth: 450 }}
-            />
-          </div>
-
-          {/* טבלת דירות מרוכזת לעריכה */}
-          <div style={{
-            background: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1.5px solid var(--color-border-card)',
-            boxShadow: 'var(--shadow-sm)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-                <thead>
-                  <tr style={{
-                    background: 'var(--color-slate-50)',
-                    borderBottom: '1.5px solid var(--color-border-card)',
-                    fontSize: '0.84rem',
-                    color: 'var(--color-slate-600)'
-                  }}>
-                    <th style={{ padding: '12px 16px' }}>מס׳ דירה</th>
-                    <th style={{ padding: '12px 16px' }}>שם דייר נוכחי</th>
-                    <th style={{ padding: '12px 16px' }}>סוג מגורים</th>
-                    <th style={{ padding: '12px 16px' }}>טלפון</th>
-                    <th style={{ padding: '12px 16px' }}>דוא״ל</th>
-                    <th style={{ padding: '12px 16px' }}>דמי ועד</th>
-                    <th style={{ padding: '12px 16px' }}>אופן תשלום</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>פעולות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredApartments.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" style={{ padding: 36, textAlign: 'center', color: 'var(--color-slate-500)' }}>
-                        לא נמצאו דירות התואמות את החיפוש בבניין זה.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredApartments.map((apt) => {
-                      const isEditing = editingAptId === apt.id;
-
-                      if (isEditing) {
-                        return (
-                          <tr key={apt.id} style={{ background: 'var(--color-gold-50)', borderBottom: '1px solid var(--color-gold-300)' }}>
-                            <td style={{ padding: '10px 12px' }}>
-                              <input
-                                type="text"
-                                value={editAptForm.aptNum}
-                                onChange={(e) => setEditAptForm({ ...editAptForm, aptNum: e.target.value })}
-                                className="input"
-                                style={{ width: 60, textAlign: 'center' }}
-                              />
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <input
-                                type="text"
-                                value={editAptForm.tenantName}
-                                onChange={(e) => setEditAptForm({ ...editAptForm, tenantName: e.target.value })}
-                                className="input"
-                                style={{ width: 140 }}
-                              />
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <select
-                                value={editAptForm.occupantType || 'שוכר'}
-                                onChange={(e) => setEditAptForm({ ...editAptForm, occupantType: e.target.value })}
-                                className="input"
-                                style={{ width: 110 }}
-                              >
-                                <option value="בעל דירה">בעל דירה</option>
-                                <option value="שוכר">שוכר</option>
-                              </select>
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <input
-                                type="text"
-                                value={editAptForm.phone || ''}
-                                onChange={(e) => setEditAptForm({ ...editAptForm, phone: e.target.value })}
-                                className="input"
-                                style={{ width: 115 }}
-                              />
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <input
-                                type="text"
-                                value={editAptForm.email || ''}
-                                onChange={(e) => setEditAptForm({ ...editAptForm, email: e.target.value })}
-                                className="input"
-                                style={{ width: 160 }}
-                              />
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <input
-                                type="number"
-                                value={editAptForm.monthlyDues}
-                                onChange={(e) => setEditAptForm({ ...editAptForm, monthlyDues: e.target.value })}
-                                className="input"
-                                style={{ width: 80, textAlign: 'center' }}
-                              />
-                            </td>
-                            <td style={{ padding: '10px 12px' }}>
-                              <select
-                                value={editAptForm.paymentMethod || 'חיובית'}
-                                onChange={(e) => setEditAptForm({ ...editAptForm, paymentMethod: e.target.value })}
-                                className="input"
-                                style={{ width: 110 }}
-                              >
-                                <option value="חיובית">חיובית</option>
-                                <option value="הוראת קבע">הוראת קבע</option>
-                                <option value="העברה בנקאית">העברה בנקאית</option>
-                                <option value="מזומן">מזומן</option>
-                              </select>
-                            </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                                <button
-                                  onClick={() => handleSaveApt(apt.id)}
-                                  className="btn btn-primary btn-sm"
-                                  title="שמור שינויים"
-                                  style={{ padding: '6px 12px' }}
-                                >
-                                  <Save size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setEditingAptId(null)}
-                                  className="btn btn-secondary btn-sm"
-                                  title="בטל"
-                                  style={{ padding: '6px 10px' }}
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return (
-                        <tr key={apt.id} style={{
-                          borderBottom: '1px solid var(--color-border-card)',
-                          fontSize: '0.88rem'
-                        }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--color-slate-900)' }}>
-                            דירה {apt.aptNum}
-                          </td>
-                          <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--color-slate-800)' }}>
-                            {apt.tenantName || 'לא הוזן'}
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span style={{
-                              background: apt.occupantType === 'בעל דירה' ? 'var(--color-gold-100)' : 'var(--color-slate-100)',
-                              color: apt.occupantType === 'בעל דירה' ? 'var(--color-gold-800)' : 'var(--color-slate-700)',
-                              padding: '2px 8px',
-                              borderRadius: 'var(--radius-full)',
-                              fontSize: '0.78rem',
-                              fontWeight: 700
-                            }}>
-                              {apt.occupantType || 'שוכר'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 16px', color: 'var(--color-slate-600)', direction: 'ltr', textAlign: 'right' }}>
-                            {apt.phone || '—'}
-                          </td>
-                          <td style={{ padding: '12px 16px', color: 'var(--color-slate-600)' }}>
-                            {apt.email || '—'}
-                          </td>
-                          <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--color-slate-900)' }}>
-                            ₪{(apt.monthlyDues || 0).toLocaleString()}
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span style={{
-                              background: '#F1F5F9',
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              fontSize: '0.8rem',
-                              color: 'var(--color-slate-700)'
-                            }}>
-                              {apt.paymentMethod || 'חיובית'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                              <button
-                                onClick={() => startEditApt(apt)}
-                                className="btn btn-secondary btn-sm"
-                                title="ערוך פרטי דירה ודייר"
-                                style={{ padding: '5px 10px' }}
-                              >
-                                <Edit3 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteApt(apt)}
-                                className="btn btn-sm"
-                                title="הסר דירה"
-                                style={{
-                                  background: 'var(--color-danger-bg)',
-                                  color: 'var(--color-danger)',
-                                  border: '1px solid var(--color-danger-border)',
-                                  padding: '5px 10px',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* מודל הוספת דירה חדשה */}
-          {isAddAptOpen && (
-            <div style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(15, 23, 42, 0.6)',
-              backdropFilter: 'blur(4px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: 20
-            }}>
-              <div style={{
-                background: '#FFFFFF',
-                borderRadius: 'var(--radius-xl)',
-                border: '1.5px solid var(--color-border-card)',
-                width: '100%',
-                maxWidth: 520,
-                padding: 28,
-                boxShadow: 'var(--shadow-pop)',
-                animation: 'scaleIn 0.2s ease'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
-                      הוספת דירה לבניין {targetBuildingForApts?.name}
-                    </h3>
-                    <p style={{ margin: '3px 0 0 0', fontSize: '0.85rem', color: 'var(--color-slate-500)' }}>
-                      הזן את פרטי הדירה והדייר לאכלוס בבניין
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsAddAptOpen(false)}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-slate-400)' }}
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                <form onSubmit={handleAddApartment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                        מספר דירה *:
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newAptForm.aptNum}
-                        onChange={(e) => setNewAptForm({ ...newAptForm, aptNum: e.target.value })}
-                        placeholder="למשל: 12"
-                        className="input"
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                        סכום ועד חודשי (₪) *:
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        value={newAptForm.monthlyDues}
-                        onChange={(e) => setNewAptForm({ ...newAptForm, monthlyDues: e.target.value })}
-                        className="input"
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                      שם דייר נוכחי:
-                    </label>
-                    <input
-                      type="text"
-                      value={newAptForm.tenantName}
-                      onChange={(e) => setNewAptForm({ ...newAptForm, tenantName: e.target.value })}
-                      placeholder="שם מלא / משפחה"
-                      className="input"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                        סוג מגורים:
-                      </label>
-                      <select
-                        value={newAptForm.occupantType}
-                        onChange={(e) => setNewAptForm({ ...newAptForm, occupantType: e.target.value })}
-                        className="input"
-                        style={{ width: '100%' }}
-                      >
-                        <option value="שוכר">שוכר</option>
-                        <option value="בעל דירה">בעל דירה</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                        אופן תשלום:
-                      </label>
-                      <select
-                        value={newAptForm.paymentMethod}
-                        onChange={(e) => setNewAptForm({ ...newAptForm, paymentMethod: e.target.value })}
-                        className="input"
-                        style={{ width: '100%' }}
-                      >
-                        <option value="חיובית">חיובית</option>
-                        <option value="הוראת קבע">הוראת קבע</option>
-                        <option value="העברה בנקאית">העברה בנקאית</option>
-                        <option value="מזומן">מזומן</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                        טלפון נייד:
-                      </label>
-                      <input
-                        type="text"
-                        value={newAptForm.phone}
-                        onChange={(e) => setNewAptForm({ ...newAptForm, phone: e.target.value })}
-                        placeholder="050-0000000"
-                        className="input"
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                        כתובת דוא״ל:
-                      </label>
-                      <input
-                        type="email"
-                        value={newAptForm.email}
-                        onChange={(e) => setNewAptForm({ ...newAptForm, email: e.target.value })}
-                        placeholder="name@example.com"
-                        className="input"
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      style={{ flex: 1, padding: 12, fontWeight: 700 }}
-                    >
-                      הוסף דירה לבניין
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddAptOpen(false)}
-                      className="btn btn-secondary"
-                      style={{ padding: '12px 20px' }}
-                    >
-                      ביטול
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -1968,23 +1276,4 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
     </div>
   );
-}
-
-function innerTabBtnStyle(isActive) {
-  return {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '10px 18px',
-    borderRadius: 'var(--radius-md)',
-    border: `1.5px solid ${isActive ? 'var(--color-gold-500)' : 'var(--color-border-card)'}`,
-    background: isActive ? 'var(--color-gold-100)' : '#FFFFFF',
-    color: isActive ? 'var(--color-gold-800)' : 'var(--color-slate-700)',
-    fontWeight: 600,
-    fontSize: '0.92rem',
-    cursor: 'pointer',
-    transition: 'all 0.18s ease',
-    whiteSpace: 'nowrap',
-    boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.06)' : 'var(--shadow-xs)'
-  };
 }
