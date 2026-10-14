@@ -1,0 +1,463 @@
+// ==========================================================================
+// בית ומנוחה - מנהל מצב מרכזי עם שמירה אוטומטית מקומית (LocalStorage)
+// ==========================================================================
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { INITIAL_BUILDINGS, EXPENSE_CATEGORIES, LETTER_TEMPLATES } from '../data/initialData';
+
+const AppContext = createContext(null);
+
+const STORAGE_KEY = 'bait_umnucha_state_v1';
+
+export function AppProvider({ children }) {
+  // טעינה ראשונית מ-LocalStorage או מנתוני הבסיס
+  const [buildings, setBuildings] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to load state from localStorage:", e);
+    }
+    return INITIAL_BUILDINGS;
+  });
+
+  const [selectedBuildingId, setSelectedBuildingId] = useState('all');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [userRole, setUserRole] = useState('admin'); // 'admin' | 'rep'
+  const [currentMonth, setCurrentMonth] = useState('2026-09');
+
+  const [reportPresets, setReportPresets] = useState([
+    { id: 'pre-1', name: 'דוח אמצע חודש', funds: ['current'], scope: 'all', viewType: 'unified' },
+    { id: 'pre-2', name: 'דוח קופות גבייה מיוחד', funds: ['current', 'special'], scope: 'all', viewType: 'separate' },
+    { id: 'pre-3', name: 'דוח חצי בניין (כניסה א)', funds: ['current'], scope: 'half', viewType: 'unified' }
+  ]);
+
+  // שמירה אוטומטית ל-LocalStorage בכל שינוי
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(buildings));
+    } catch (e) {
+      console.error("Failed to save state to localStorage:", e);
+    }
+  }, [buildings]);
+
+  // הבניין הנבחר כעת (אם נבחר בניין ספציפי)
+  const currentBuilding = buildings.find(b => b.id === selectedBuildingId) || null;
+
+  // הוספת בניין חדש (16+)
+  const addBuilding = (buildingData) => {
+    const newId = `bld-${Date.now()}`;
+    const newBuilding = {
+      id: newId,
+      name: buildingData.name,
+      address: buildingData.address || '',
+      bankAccount: buildingData.bankAccount || '',
+      hiyuvitCode: buildingData.hiyuvitCode || '',
+      currentBalance: parseFloat(buildingData.initialBalance) || 0,
+      statusMonthUpdated: false,
+      settings: {
+        issuesEnabled: true,
+        reportsViewEnabled: false,
+        recurringExpenses: []
+      },
+      apartments: [],
+      expenses: [],
+      specialLevies: [],
+      issues: []
+    };
+    setBuildings(prev => [newBuilding, ...prev]);
+    setSelectedBuildingId(newId);
+    return newId;
+  };
+
+  // עדכון הגדרות בניין (כולל מתגי הרשאה לנציגים)
+  const updateBuildingSettings = (buildingId, newSettings) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id === buildingId) {
+        return {
+          ...b,
+          settings: { ...b.settings, ...newSettings }
+        };
+      }
+      return b;
+    }));
+  };
+
+  // הזנת תקבול ידני חכם (מזומן או העברה ישירה) עם סגירת חודשי חוב
+  const recordManualReceipt = (buildingId, aptId, amount, paidMonths = [], notes = '', paymentType = 'מזומן') => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+
+      const numAmount = parseFloat(amount) || 0;
+      const updatedApartments = (b.apartments || []).map(apt => {
+        if (apt.id !== aptId) return apt;
+        // הסרת החודשים ששולמו מרשימת החוב
+        const updatedDebtMonths = (apt.debtMonths || []).filter(m => !paidMonths.includes(m));
+        return {
+          ...apt,
+          debtMonths: updatedDebtMonths
+        };
+      });
+
+      // הוספת תנועה ליתרת הבניין
+      const newBalance = (b.currentBalance || 0) + numAmount;
+
+      return {
+        ...b,
+        currentBalance: newBalance,
+        apartments: updatedApartments,
+        expenses: [
+          {
+            id: `rec-in-${Date.now()}`,
+            date: new Date().toISOString().slice(0, 10),
+            month: currentMonth,
+            category: "תקבול ישיר",
+            amount: -numAmount, // סכום שלילי להוצאה = הכנסה
+            description: `תקבול ${paymentType} מדירה (סגירת חודשים: ${paidMonths.join(', ') || 'שוטף'})${notes ? ' - ' + notes : ''}`,
+            source: paymentType
+          },
+          ...(b.expenses || [])
+        ]
+      };
+    }));
+  };
+
+  // הזנת הוצאת מזומן ידנית
+  const recordCashExpense = (buildingId, category, amount, description, date = '') => {
+    const numAmount = parseFloat(amount) || 0;
+    const expDate = date || new Date().toISOString().slice(0, 10);
+    const expMonth = expDate.slice(0, 7);
+
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      return {
+        ...b,
+        currentBalance: (b.currentBalance || 0) - numAmount,
+        expenses: [
+          {
+            id: `cash-out-${Date.now()}`,
+            date: expDate,
+            month: expMonth,
+            category: category || "תחזוקה שוטפת והוצאות חריגות",
+            amount: numAmount,
+            description: description || "הוצאה ידנית במזומן",
+            source: "מזומן"
+          },
+          ...(b.expenses || [])
+        ]
+      };
+    }));
+  };
+
+  // קליטת תנועות מקובץ עו"ש בנק
+  const ingestBankReport = (buildingId, parsedTransactions) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      let balanceDiff = 0;
+      const newExpenses = parsedTransactions.map(tx => {
+        if (tx.type === 'expense') {
+          balanceDiff -= tx.amount;
+        } else {
+          balanceDiff += tx.amount;
+        }
+        return {
+          id: tx.id,
+          date: tx.date || new Date().toISOString().slice(0, 10),
+          month: currentMonth,
+          category: tx.category,
+          amount: tx.type === 'expense' ? tx.amount : -tx.amount,
+          description: tx.description,
+          source: "בנק"
+        };
+      });
+
+      return {
+        ...b,
+        statusMonthUpdated: true,
+        currentBalance: (b.currentBalance || 0) + balanceDiff,
+        expenses: [...newExpenses, ...(b.expenses || [])]
+      };
+    }));
+  };
+
+  // קליטת תנועות מקובץ חיובית
+  const ingestHiyuvitReport = (buildingId, parsedTransactions) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      let totalCollected = 0;
+      let totalFees = 0;
+
+      parsedTransactions.forEach(tx => {
+        if (tx.isSuccess) {
+          totalCollected += tx.net;
+          totalFees += tx.fee;
+        }
+      });
+
+      const feeExpense = totalFees > 0 ? [{
+        id: `hiyuvit-fee-${Date.now()}`,
+        date: new Date().toISOString().slice(0, 10),
+        month: currentMonth,
+        category: "עמלות סליקה",
+        amount: totalFees,
+        description: `עמלות סליקה חברת חיובית (${parsedTransactions.length} תנועות)`,
+        source: "חיובית"
+      }] : [];
+
+      return {
+        ...b,
+        statusMonthUpdated: true,
+        currentBalance: (b.currentBalance || 0) + totalCollected,
+        expenses: [...feeExpense, ...(b.expenses || [])]
+      };
+    }));
+  };
+
+  // ייבוא דיירים לבניין בודד
+  const importApartmentsForBuilding = (buildingId, aptList) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const formatted = aptList.map((apt, idx) => ({
+        id: `apt-${Date.now()}-${idx}`,
+        aptNum: apt.aptNum,
+        tenantName: apt.tenantName,
+        phone: apt.phone || '',
+        email: apt.email || '',
+        monthlyDues: apt.monthlyDues || 300,
+        paymentMethod: apt.paymentMethod || 'חיובית',
+        debtMonths: apt.debtMonths || []
+      }));
+      return { ...b, apartments: formatted };
+    }));
+  };
+
+  // ייבוא קובץ מאסטר מרובה לשוניות לכל הבניינים
+  const importMasterSheets = (sheetsData) => {
+    setBuildings(prev => prev.map(b => {
+      const match = Object.keys(sheetsData).find(sheetName => 
+        sheetName.includes(b.name) || b.name.includes(sheetName)
+      );
+      if (match && sheetsData[match]) {
+        const formatted = sheetsData[match].map((apt, idx) => ({
+          id: `apt-master-${Date.now()}-${idx}`,
+          aptNum: apt.aptNum,
+          tenantName: apt.tenantName,
+          phone: apt.phone || '',
+          email: apt.email || '',
+          monthlyDues: apt.monthlyDues || 300,
+          paymentMethod: apt.paymentMethod || 'חיובית',
+          debtMonths: []
+        }));
+        return { ...b, apartments: formatted };
+      }
+      return b;
+    }));
+  };
+
+  // נוהל דיירים מתחלפים (סגירת חשבון ושמירת חוב על הדייר היוצא)
+  const handleTenantTurnover = (buildingId, aptId, newTenantData, moveOutDate) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const updatedApartments = (b.apartments || []).map(apt => {
+        if (apt.id !== aptId) return apt;
+        
+        // תיעוד החוב של הדייר הקודם בהיסטוריה
+        const prevDebtCount = apt.debtMonths ? apt.debtMonths.length : 0;
+        const prevDebtTotal = prevDebtCount * apt.monthlyDues;
+
+        return {
+          ...apt,
+          tenantName: newTenantData.tenantName,
+          phone: newTenantData.phone || '',
+          email: newTenantData.email || '',
+          monthlyDues: newTenantData.monthlyDues || apt.monthlyDues,
+          paymentMethod: newTenantData.paymentMethod || 'חיובית',
+          debtMonths: [], // דף נקי לדייר הנכנס
+          turnoverHistory: [
+            ...(apt.turnoverHistory || []),
+            {
+              prevTenantName: apt.tenantName,
+              moveOutDate: moveOutDate || new Date().toISOString().slice(0, 10),
+              unpaidMonths: apt.debtMonths || [],
+              debtBalance: prevDebtTotal
+            }
+          ]
+        };
+      });
+
+      return { ...b, apartments: updatedApartments };
+    }));
+  };
+
+  // הוספת גבייה מיוחדת (תיקון צנרת / חשמל)
+  const addSpecialLevy = (buildingId, levyData) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const newLevy = {
+        id: `levy-${Date.now()}`,
+        title: levyData.title,
+        totalAmount: parseFloat(levyData.totalAmount) || 0,
+        amountPerApt: parseFloat(levyData.amountPerApt) || 0,
+        createdAt: new Date().toISOString().slice(0, 10),
+        status: "פעיל",
+        paidApartmentIds: []
+      };
+      return {
+        ...b,
+        specialLevies: [newLevy, ...(b.specialLevies || [])]
+      };
+    }));
+  };
+
+  // סימון תשלום עבור גבייה מיוחדת
+  const toggleLevyPayment = (buildingId, levyId, aptId) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const updatedLevies = (b.specialLevies || []).map(l => {
+        if (l.id !== levyId) return l;
+        const isPaid = (l.paidApartmentIds || []).includes(aptId);
+        const newPaidIds = isPaid
+          ? l.paidApartmentIds.filter(id => id !== aptId)
+          : [...(l.paidApartmentIds || []), aptId];
+        return { ...l, paidApartmentIds: newPaidIds };
+      });
+      return { ...b, specialLevies: updatedLevies };
+    }));
+  };
+
+  // פניות (Issues)
+  const addIssue = (buildingId, title, author, initialComment) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const newIssue = {
+        id: `iss-${Date.now()}`,
+        title,
+        author,
+        createdAt: new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }),
+        status: 'open',
+        comments: [
+          {
+            id: `comm-${Date.now()}`,
+            author,
+            text: initialComment,
+            time: new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
+          }
+        ]
+      };
+      return {
+        ...b,
+        issues: [newIssue, ...(b.issues || [])]
+      };
+    }));
+  };
+
+  const addIssueComment = (buildingId, issueId, author, text) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const updatedIssues = (b.issues || []).map(iss => {
+        if (iss.id !== issueId) return iss;
+        return {
+          ...iss,
+          comments: [
+            ...iss.comments,
+            {
+              id: `comm-${Date.now()}`,
+              author,
+              text,
+              time: new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
+            }
+          ]
+        };
+      });
+      return { ...b, issues: updatedIssues };
+    }));
+  };
+
+  const toggleIssueStatus = (buildingId, issueId) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const updatedIssues = (b.issues || []).map(iss => {
+        if (iss.id !== issueId) return iss;
+        return {
+          ...iss,
+          status: iss.status === 'open' ? 'closed' : 'open'
+        };
+      });
+      return { ...b, issues: updatedIssues };
+    }));
+  };
+
+  // שמירת מצב דוח חדש (Preset)
+  const savePreset = (presetData) => {
+    const newPreset = {
+      id: `pre-${Date.now()}`,
+      name: presetData.name,
+      funds: presetData.funds || ['current'],
+      scope: presetData.scope || 'all',
+      viewType: presetData.viewType || 'unified'
+    };
+    setReportPresets(prev => [...prev, newPreset]);
+  };
+
+  // הורדת גיבוי נתונים מלא (מענה ישיר לחשש הלקוח)
+  const exportFullBackup = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(buildings, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `גיבוי_מלא_בית_ומנוחה_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // שחזור גיבוי
+  const importFullBackup = (jsonData) => {
+    try {
+      const parsed = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+      if (Array.isArray(parsed)) {
+        setBuildings(parsed);
+        alert("הנתונים שוחזרו בהצלחה!");
+      }
+    } catch (e) {
+      alert("שגיאה בפענוח קובץ הגיבוי");
+    }
+  };
+
+  const value = {
+    buildings,
+    selectedBuildingId,
+    setSelectedBuildingId,
+    currentBuilding,
+    activeTab,
+    setActiveTab,
+    userRole,
+    setUserRole,
+    currentMonth,
+    setCurrentMonth,
+    reportPresets,
+    addBuilding,
+    updateBuildingSettings,
+    recordManualReceipt,
+    recordCashExpense,
+    ingestBankReport,
+    ingestHiyuvitReport,
+    importApartmentsForBuilding,
+    importMasterSheets,
+    handleTenantTurnover,
+    addSpecialLevy,
+    toggleLevyPayment,
+    addIssue,
+    addIssueComment,
+    toggleIssueStatus,
+    savePreset,
+    exportFullBackup,
+    importFullBackup
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (!context) throw new Error("useApp must be used within AppProvider");
+  return context;
+}
