@@ -780,32 +780,13 @@ export default function SettingsView({ onOpenAddBuilding }) {
                   }} />
 
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8, marginTop: 4 }}>
-                      <div>
-                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
-                          {bld.name}
-                        </h3>
-                        <p style={{ margin: '2px 0 0 0', fontSize: '0.84rem', color: 'var(--color-slate-600)' }}>
-                          {bld.address || 'לא הוגדרה כתובת'}
-                        </p>
-                      </div>
-
-                      {/* תגית צבע הבניין */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        background: bldColor.tint,
-                        border: `1px solid ${bldColor.border}`,
-                        padding: '4px 10px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                        color: bldColor.text
-                      }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: bldColor.primary }} />
-                        <span>{bldColor.name}</span>
-                      </div>
+                    <div style={{ marginBottom: 8, marginTop: 4 }}>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
+                        {bld.name}
+                      </h3>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.84rem', color: 'var(--color-slate-600)' }}>
+                        {bld.address || 'לא הוגדרה כתובת'}
+                      </p>
                     </div>
 
                     <div style={{
