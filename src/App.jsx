@@ -42,35 +42,50 @@ function MainApp() {
     }
   };
 
-  const activeColor = currentBuilding?.color;
+  const isSettings = activeTab === 'settings';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-cream-bg)' }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      backgroundColor: isSettings ? '#0F172A' : 'var(--color-cream-bg)',
+      transition: 'background-color 0.3s ease'
+    }}>
       <Navbar onOpenAddBuilding={() => setIsAddBuildingOpen(true)} />
 
       <main style={{ 
         flex: 1, 
         paddingBottom: 60,
-        background: (activeColor && activeTab !== 'settings') 
-          ? `linear-gradient(180deg, ${activeColor.tint} 0%, var(--color-cream-bg) 280px)` 
-          : 'var(--color-cream-bg)',
+        background: isSettings 
+          ? '#0F172A' 
+          : (activeColor 
+              ? `linear-gradient(180deg, ${activeColor.tint} 0%, var(--color-cream-bg) 280px)` 
+              : 'var(--color-cream-bg)'),
         transition: 'background 0.35s ease'
       }}>
         {renderActiveView()}
       </main>
 
       <footer style={{
-        background: '#FFFFFF',
-        borderTop: '1px solid var(--color-beige-border)',
+        background: isSettings ? '#0B1120' : '#FFFFFF',
+        borderTop: isSettings ? '1px solid #1E293B' : '1px solid var(--color-beige-border)',
         padding: '16px 20px',
         textAlign: 'center',
-        color: 'var(--color-brown-500)',
-        fontSize: '0.82rem'
+        color: isSettings ? 'var(--color-slate-400)' : 'var(--color-brown-500)',
+        fontSize: '0.82rem',
+        transition: 'all 0.3s ease'
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span style={{ fontWeight: 700, color: 'var(--color-brown-800)' }}>בית ומנוחה</span>
+          <span style={{ fontWeight: 700, color: isSettings ? 'var(--color-gold-400)' : 'var(--color-brown-800)' }}>בית ומנוחה</span>
           <span>—</span>
           <span>ניהול ועד בית ואחזקת מבנים</span>
+          {isSettings && (
+            <>
+              <span>•</span>
+              <span style={{ color: 'var(--color-gold-500)', fontWeight: 600 }}>אזור הגדרות ועריכת מערכת</span>
+            </>
+          )}
         </div>
       </footer>
 

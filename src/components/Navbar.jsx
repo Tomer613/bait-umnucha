@@ -42,14 +42,17 @@ export default function Navbar({ onOpenAddBuilding }) {
     text: 'var(--color-gold-700)'
   };
 
+  const isSettings = activeTab === 'settings';
+
   return (
     <header style={{
-      background: '#FFFFFF',
-      borderBottom: '1px solid var(--color-beige-border)',
+      background: isSettings ? '#0B1120' : '#FFFFFF',
+      borderBottom: isSettings ? '1.5px solid #1E293B' : '1px solid var(--color-beige-border)',
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      boxShadow: 'var(--shadow-sm)'
+      boxShadow: isSettings ? '0 4px 20px rgba(0,0,0,0.3)' : 'var(--shadow-sm)',
+      transition: 'all 0.3s ease'
     }}>
       
       {/* --------------------------------------------------------------------
@@ -85,15 +88,16 @@ export default function Navbar({ onOpenAddBuilding }) {
             <h1 style={{ 
               fontSize: '1.45rem', 
               fontWeight: 800, 
-              color: 'var(--color-brown-900)',
+              color: isSettings ? '#FFFFFF' : 'var(--color-brown-900)',
               lineHeight: 1.1,
-              letterSpacing: '-0.02em'
+              letterSpacing: '-0.02em',
+              transition: 'color 0.3s ease'
             }}>
               בית ומנוחה
             </h1>
             <p style={{ 
               fontSize: '0.82rem', 
-              color: 'var(--color-gold-600)', 
+              color: 'var(--color-gold-500)', 
               fontWeight: 600 
             }}>
               ניהול ועד בית ואחזקת מבנים
@@ -111,16 +115,16 @@ export default function Navbar({ onOpenAddBuilding }) {
               display: 'flex',
               alignItems: 'center',
               gap: 7,
-              padding: '6px 14px',
+              padding: '7px 16px',
               borderRadius: 'var(--radius-md)',
-              border: activeTab === 'settings' ? '1.5px solid var(--color-gold-500)' : '1.5px solid var(--color-border-card)',
-              background: activeTab === 'settings' ? 'var(--color-gold-100)' : '#FFFFFF',
-              color: activeTab === 'settings' ? 'var(--color-gold-800)' : 'var(--color-slate-800)',
-              fontWeight: 700,
+              border: isSettings ? '1.5px solid var(--color-gold-400)' : '1.5px solid var(--color-border-card)',
+              background: isSettings ? 'var(--color-gold-500)' : '#FFFFFF',
+              color: isSettings ? '#0F172A' : 'var(--color-slate-800)',
+              fontWeight: 800,
               fontSize: '0.86rem',
               cursor: 'pointer',
-              boxShadow: activeTab === 'settings' ? '0 2px 8px rgba(0,0,0,0.08)' : 'var(--shadow-xs)',
-              transition: 'all 0.18s ease'
+              boxShadow: isSettings ? '0 0 14px rgba(197, 155, 39, 0.35)' : 'var(--shadow-xs)',
+              transition: 'all 0.2s ease'
             }}
           >
             <Settings size={16} />
@@ -131,15 +135,16 @@ export default function Navbar({ onOpenAddBuilding }) {
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            background: 'var(--color-cream-subtle)',
-            padding: '5px 12px',
+            background: isSettings ? '#1E293B' : 'var(--color-cream-subtle)',
+            padding: '6px 14px',
             borderRadius: 'var(--radius-full)',
-            border: '1px solid var(--color-beige-border)',
+            border: isSettings ? '1px solid #334155' : '1px solid var(--color-beige-border)',
             fontSize: '0.82rem',
             fontWeight: 700,
-            color: 'var(--color-brown-900)'
+            color: isSettings ? '#F8FAFC' : 'var(--color-brown-900)',
+            transition: 'all 0.3s ease'
           }}>
-            <UserCheck size={14} color="var(--color-gold-600)" />
+            <UserCheck size={14} color="var(--color-gold-500)" />
             <span>{systemSettings?.managerName || 'ישי לוי'} — מנהל מערכת</span>
           </div>
         </div>
