@@ -3,6 +3,9 @@
 // ==========================================================================
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_BUILDINGS, BUILDING_COLOR_PALETTE, getBuildingColor, EXPENSE_CATEGORIES, OTHER_CATEGORY } from '../data/initialData';
+import { migrateMonthClose } from '../utils/monthClose';
+
+const INITIAL_MONTH = '2026-09';
 
 const AppContext = createContext(null);
 
@@ -48,7 +51,9 @@ const DEFAULT_SETTINGS = {
   companyEmailSecondary: '9926606@gmail.com',
   defaultMonthlyDues: 300,
   enableIssuesModule: true,
-  expenseCategories: EXPENSE_CATEGORIES
+  expenseCategories: EXPENSE_CATEGORIES,
+  lowBalanceThreshold: 7000, // משימות: יתרה נמוכה
+  chronicDebtMonths: 3       // משימות: חוב מתמשך (חודשים)
 };
 
 export function AppProvider({ children }) {
@@ -58,15 +63,15 @@ export function AppProvider({ children }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return parsed.map((b, idx) => ({
+        return parsed.map((b, idx) => migrateMonthClose({
           ...b,
           color: getBuildingColor(b, idx)
-        }));
+        }, INITIAL_MONTH));
       }
     } catch (e) {
       console.error("Failed to load state from localStorage:", e);
     }
-    return INITIAL_BUILDINGS;
+    return INITIAL_BUILDINGS.map(b => migrateMonthClose(b, INITIAL_MONTH));
   });
 
   // הגדרות מערכת ואתר מרוכזות
@@ -117,12 +122,14 @@ export function AppProvider({ children }) {
   // ניווט: טאב ראשי + תת-לשונית (כספים → תנועות/גביות, דוחות → דוחות/מכתבים)
   const [activeTab, setActiveTabState] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState(null);
+  // תבנית מכתב לפתיחה מוכנה (למשל ממשימת "חוב מתמשך")
+  const [letterPreset, setLetterPreset] = useState(null);
   const setActiveTab = (tab, subTab = null) => {
     setActiveTabState(tab);
     setActiveSubTab(subTab);
   };
   const [userRole, setUserRole] = useState('admin'); // 'admin' | 'rep'
-  const [currentMonth, setCurrentMonth] = useState('2026-09');
+  const [currentMonth, setCurrentMonth] = useState(INITIAL_MONTH);
 
   const [reportPresets, setReportPresets] = useState(() => {
     try {
@@ -203,7 +210,6 @@ export function AppProvider({ children }) {
       bankAccount: buildingData.bankAccount || '',
       hiyuvitCode: buildingData.hiyuvitCode || '',
       currentBalance: parseFloat(buildingData.initialBalance) || 0,
-      statusMonthUpdated: false,
       color: assignedColor,
       settings: {
         issuesEnabled: true,
@@ -328,12 +334,14 @@ export function AppProvider({ children }) {
     setSystemSettings(prev => ({ ...prev, ...newSettings }));
   };
 
-  // הזנת תקבול ידני חכם (מזומן או העברה ישירה) עם סגירת חודשי חוב
+  // הכנסה במזומן מדייר (נשמרת בקופה) עם סגירת חודשי חוב
   const recordManualReceipt = (buildingId, aptId, amount, paidMonths = [], notes = '', paymentType = 'מזומן') => {
     setBuildings(prev => prev.map(b => {
       if (b.id !== buildingId) return b;
 
       const numAmount = parseFloat(amount) || 0;
+      const payer = (b.apartments || []).find(apt => apt.id === aptId);
+      const aptLabel = payer ? `דירה ${payer.aptNum} (${payer.tenantName})` : 'דייר';
       const updatedApartments = (b.apartments || []).map(apt => {
         if (apt.id !== aptId) return apt;
         // הסרת החודשים ששולמו מרשימת החוב
@@ -356,9 +364,9 @@ export function AppProvider({ children }) {
             id: `rec-in-${Date.now()}`,
             date: new Date().toISOString().slice(0, 10),
             month: currentMonth,
-            category: "תקבול ישיר",
+            category: "הכנסה במזומן",
             amount: -numAmount, // סכום שלילי להוצאה = הכנסה
-            description: `תקבול ${paymentType} מדירה (סגירת חודשים: ${paidMonths.join(', ') || 'שוטף'})${notes ? ' - ' + notes : ''}`,
+            description: `${aptLabel} שילם/ה במזומן (חודשים: ${paidMonths.join(', ') || 'שוטף'})${notes ? ' - ' + notes : ''}`,
             source: paymentType
           },
           ...(b.expenses || [])
@@ -394,6 +402,22 @@ export function AppProvider({ children }) {
     }));
   };
 
+  // סגירת חודש: סימון / ביטול סימון של שלב בצ'קליסט
+  const setCloseStep = (buildingId, month, stepId, value) => {
+    setBuildings(prev => prev.map(b => b.id !== buildingId ? b : { ...b, monthClose: closeStepIn(b, month, stepId, value) }));
+  };
+
+  // פתיחת חודש סגור מחדש — מבטל את אישורי ההזנה הידנית (הקבצים שהועלו נשארים)
+  const reopenMonth = (buildingId, month) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const rec = { ...(b.monthClose?.[month] || {}) };
+      ['receipts', 'expenses'].forEach(id => { rec[id] = { done: false }; });
+      ['bank', 'hiyuvit'].forEach(id => { if (rec[id] && !rec[id].auto) rec[id] = { done: false }; });
+      return { ...b, monthClose: { ...(b.monthClose || {}), [month]: rec } };
+    }));
+  };
+
   // קליטת תנועות מקובץ עו"ש בנק
   const ingestBankReport = (buildingId, parsedTransactions) => {
     setBuildings(prev => prev.map(b => {
@@ -418,7 +442,7 @@ export function AppProvider({ children }) {
 
       return {
         ...b,
-        statusMonthUpdated: true,
+        monthClose: closeStepIn(b, currentMonth, 'bank', { done: true, auto: true, note: `${parsedTransactions.length} תנועות נקלטו מהקובץ` }),
         currentBalance: (b.currentBalance || 0) + balanceDiff,
         expenses: [...newExpenses, ...(b.expenses || [])]
       };
@@ -451,7 +475,7 @@ export function AppProvider({ children }) {
 
       return {
         ...b,
-        statusMonthUpdated: true,
+        monthClose: closeStepIn(b, currentMonth, 'hiyuvit', { done: true, auto: true, note: `${parsedTransactions.length} תנועות גבייה נקלטו מהקובץ` }),
         currentBalance: (b.currentBalance || 0) + totalCollected,
         expenses: [...feeExpense, ...(b.expenses || [])]
       };
@@ -684,6 +708,8 @@ export function AppProvider({ children }) {
     setActiveTab,
     activeSubTab,
     setActiveSubTab,
+    letterPreset,
+    setLetterPreset,
     userRole,
     setUserRole,
     currentMonth,
@@ -709,6 +735,8 @@ export function AppProvider({ children }) {
     importFullBackup,
     systemSettings,
     updateSystemSettings,
+    setCloseStep,
+    reopenMonth,
     expenseCategories,
     addExpenseCategory,
     removeExpenseCategory,
@@ -723,6 +751,13 @@ export function AppProvider({ children }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+// עדכון שלב אחד ברשומת סגירת החודש של בניין
+function closeStepIn(building, month, stepId, value) {
+  const all = building.monthClose || {};
+  const rec = all[month] || {};
+  return { ...all, [month]: { ...rec, [stepId]: { ...value, at: new Date().toISOString().slice(0, 10) } } };
 }
 
 export function useApp() {

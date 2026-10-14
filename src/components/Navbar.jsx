@@ -4,12 +4,13 @@
 // ==========================================================================
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { LayoutDashboard, Wallet, Users, MessageSquare, FileText, Settings, ChevronDown, ArrowRight } from 'lucide-react';
+import { ListChecks, Wallet, Users, MessageSquare, FileText, Settings, ChevronDown, ArrowRight } from 'lucide-react';
 import { BuildingAvatar, AllBuildingsAvatar } from './ui';
 import { openIssuesCount, sumBy, requestBuildingPick } from '../utils/format';
+import { computeTasks, countTaskItems, DEFAULT_LOW_BALANCE, DEFAULT_CHRONIC_MONTHS } from '../utils/tasks';
 
 const NAV_TABS = [
-  { id: 'dashboard', label: 'סקירה', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'משימות', icon: ListChecks },
   { id: 'finance', label: 'כספים', icon: Wallet },
   { id: 'tenants', label: 'דירות ודיירים', icon: Users },
   { id: 'issues', label: 'פניות', icon: MessageSquare },
@@ -23,12 +24,19 @@ export default function Navbar() {
     currentBuilding,
     activeTab,
     setActiveTab,
-    systemSettings
+    systemSettings,
+    currentMonth
   } = useApp();
 
   const isSettings = activeTab === 'settings';
   const managerName = systemSettings?.managerName || 'מנהל המערכת';
   const openIssues = currentBuilding ? openIssuesCount(currentBuilding) : sumBy(buildings, openIssuesCount);
+  const taskCount = countTaskItems(computeTasks(currentBuilding ? [currentBuilding] : buildings, {
+    currentMonth,
+    lowBalance: Number(systemSettings?.lowBalanceThreshold) || DEFAULT_LOW_BALANCE,
+    chronicMonths: Number(systemSettings?.chronicDebtMonths) || DEFAULT_CHRONIC_MONTHS
+  }));
+  const tabCounts = { dashboard: taskCount, issues: openIssues };
 
   return (
     <div className="app-header no-print">
@@ -78,7 +86,7 @@ export default function Navbar() {
               >
                 <tab.icon size={18} />
                 <span>{tab.label}</span>
-                {tab.id === 'issues' && openIssues > 0 && <span className="count">{openIssues}</span>}
+                {tabCounts[tab.id] > 0 && <span className="count">{tabCounts[tab.id]}</span>}
               </button>
             ))}
           </div>

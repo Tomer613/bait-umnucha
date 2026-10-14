@@ -9,6 +9,7 @@ import { formatFormattedDate } from '../utils/hebrewDate';
 import ConfirmModal from './ConfirmModal';
 import { PageHeader, SubTabs, FlashMessage, Field, BuildingAvatar } from './ui';
 import { buildingDebt, formatILS } from '../utils/format';
+import { closeStatus } from '../utils/monthClose';
 import DisplaySettings from './DisplaySettings';
 import ExpenseCategoriesSettings from './ExpenseCategoriesSettings';
 import {
@@ -34,6 +35,7 @@ import {
 export default function SettingsView({ onOpenAddBuilding }) {
   const {
     buildings,
+    currentMonth,
     updateBuilding,
     deleteBuilding,
     systemSettings,
@@ -151,6 +153,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
       emailList: eList,
       companyPhone: systemSettings?.companyPhone || 'שיחות: 052-7623803 | וואטסאפ: 055-6704029',
       defaultMonthlyDues: systemSettings?.defaultMonthlyDues || 300,
+      lowBalanceThreshold: systemSettings?.lowBalanceThreshold ?? 7000,
+      chronicDebtMonths: systemSettings?.chronicDebtMonths ?? 3,
       enableIssuesModule: systemSettings?.enableIssuesModule ?? true
     };
   });
@@ -177,6 +181,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
           emailList: eList,
           companyPhone: systemSettings.companyPhone || prev.companyPhone,
           defaultMonthlyDues: systemSettings.defaultMonthlyDues || prev.defaultMonthlyDues,
+          lowBalanceThreshold: systemSettings.lowBalanceThreshold ?? prev.lowBalanceThreshold,
+          chronicDebtMonths: systemSettings.chronicDebtMonths ?? prev.chronicDebtMonths,
           enableIssuesModule: systemSettings.enableIssuesModule ?? prev.enableIssuesModule
         };
       });
@@ -419,9 +425,10 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
                   <div className="bcard-body">
                     <div className="row" style={{ gap: 6 }}>
-                      {bld.statusMonthUpdated
-                        ? <span className="badge badge-success badge-dot">קליטה מעודכנת</span>
-                        : <span className="badge badge-warning badge-dot">ממתין לקליטה</span>}
+                      {(() => {
+                        const st = closeStatus(bld, currentMonth);
+                        return <span className={`badge badge-dot ${st.id === 'closed' ? 'badge-success' : 'badge-warning'}`}>{st.label}</span>;
+                      })()}
                       {debt > 0 && <span className="badge badge-danger">חוב {formatILS(debt)}</span>}
                     </div>
 
@@ -651,6 +658,36 @@ export default function SettingsView({ onOpenAddBuilding }) {
                   ₪
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* כרטיס ספי המשימות */}
+          <div className="card stack" style={{ gap: 14, marginBottom: 20 }}>
+            <div>
+              <h3 className="section-title">מתי להתריע במסך המשימות</h3>
+              <p className="section-sub">המערכת תציג משימה כשבניין או דירה עוברים את הספים האלה.</p>
+            </div>
+            <div className="field-row" style={{ maxWidth: 560 }}>
+              <Field label="יתרה נמוכה בקופה (₪)" hint="משימה כשהיתרה יורדת מתחת לסכום הזה">
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={prefForm.lowBalanceThreshold}
+                  onChange={(e) => setPrefForm({ ...prefForm, lowBalanceThreshold: parseFloat(e.target.value) || 0 })}
+                  className="input"
+                />
+              </Field>
+              <Field label="חוב מתמשך (חודשים)" hint="משימת מכתב התראה מכמות החודשים הזו">
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={prefForm.chronicDebtMonths}
+                  onChange={(e) => setPrefForm({ ...prefForm, chronicDebtMonths: parseInt(e.target.value, 10) || 1 })}
+                  className="input"
+                />
+              </Field>
             </div>
           </div>
 

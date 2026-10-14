@@ -243,6 +243,4 @@ export const LETTER_TEMPLATES = [
 // רשימות קבועות לטפסים — מקור אחד לכל המערכת
 export const PAYMENT_METHODS = ["חיובית", "הוראת קבע", "העברה בנקאית", "מזומן"];
 
-export const RECEIPT_TYPES = ["מזומן", "העברה בנקאית ישירה", "צ'ק"];
-
 export const OCCUPANT_TYPES = ["שוכר", "בעל דירה"];

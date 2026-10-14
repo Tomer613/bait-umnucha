@@ -784,10 +784,26 @@ a { color: var(--petrol-600); }
 }
 .seg-btn:hover { color: var(--ink-900); }
 .seg-btn.is-active { background: var(--petrol-600); color: #FFFFFF; font-weight: 700; box-shadow: 0 3px 8px -3px rgba(10, 140, 122, 0.8); }
-.seg-btn .seg-count { font-size: 0.82rem; color: var(--ink-500); font-variant-numeric: tabular-nums; }
-.seg-btn.is-active .seg-count { color: var(--petrol-100); }
+.seg-btn .seg-count {
+  /* מונה: תג עגול נפרד מהמילה */
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+  color: var(--ink-700);
+  border: 1px solid var(--line);
+  margin-inline-start: 2px;
+}
+.seg-btn.is-active .seg-count { background: #FFFFFF; color: var(--petrol-700); border-color: transparent; }
 .seg--danger .seg-btn.is-active { background: var(--coral-600); box-shadow: 0 3px 8px -3px rgba(226, 64, 28, 0.8); }
-.seg--danger .seg-btn.is-active .seg-count { color: var(--coral-100); }
+.seg--danger .seg-btn.is-active .seg-count { background: #FFFFFF; color: var(--coral-600); }
 
 .subtabs { display: flex; gap: 4px; box-shadow: inset 0 -2px 0 var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .subtabs::-webkit-scrollbar { display: none; }
@@ -1379,3 +1395,106 @@ html[data-density="spacious"] { --space-page: 28px; --space-card: 30px; --space-
 .kpi { box-shadow: none; cursor: default; }
 .kpi--hero { box-shadow: none; }
 .kpi .kpi-icon { box-shadow: none; }
+
+/* ==========================================================================
+   מסך משימות — "מה דורש טיפול"
+   ========================================================================== */
+.brief {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 26px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--petrol-700) 0%, var(--petrol-900) 100%);
+  color: #FFFFFF;
+  position: relative;
+  overflow: hidden;
+}
+.brief::after {
+  content: "";
+  position: absolute;
+  inset: auto -40px -60px auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(242, 177, 39, 0.28), transparent 70%);
+  pointer-events: none;
+}
+.brief-text { position: relative; z-index: 1; }
+.brief-date { font-size: 0.86rem; font-weight: 600; color: var(--gold-400); }
+.brief-title { font-size: 2rem; font-weight: 700; color: #FFFFFF; line-height: 1.2; margin-top: 2px; }
+.brief-sub { font-size: 1.05rem; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
+.brief-more { margin-top: 10px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.28); color: #FFFFFF; font-weight: 700; font-size: 0.9rem; padding: 7px 14px; border-radius: var(--radius-full); cursor: pointer; }
+.brief-more:hover { background: rgba(255, 255, 255, 0.24); }
+
+.task-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 18px; align-items: start; }
+.task-card {
+  --t: var(--petrol-600);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: inset 0 4px 0 var(--t);
+}
+.task-card--gold { --t: var(--gold-600); }
+.task-card--coral { --t: var(--coral-600); }
+.task-card--violet { --t: var(--violet-600); }
+.task-card--sky { --t: var(--sky-600); }
+.task-card--petrol { --t: var(--petrol-600); }
+.task-head { display: flex; align-items: flex-start; gap: 14px; padding: 20px 20px 14px; }
+.task-icon { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; flex-shrink: 0; background: var(--t); color: #FFFFFF; }
+.task-titles { flex: 1; min-width: 0; }
+.task-titles h2 { font-size: 1.15rem; font-weight: 700; color: var(--ink-900); line-height: 1.3; }
+.task-titles p { font-size: 0.88rem; color: var(--ink-600); margin-top: 3px; }
+.task-count { min-width: 30px; height: 30px; padding: 0 9px; border-radius: var(--radius-full); display: grid; place-items: center; background: color-mix(in srgb, var(--t) 14%, #FFFFFF); color: var(--t); font-weight: 800; font-size: 0.92rem; flex-shrink: 0; }
+.task-progress { padding: 0 20px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--ink-600); font-weight: 600; }
+.task-progress .progress-bar { background: var(--t); }
+.task-items { list-style: none; border-top: 1px solid var(--surface-3); }
+.task-item { display: flex; align-items: center; gap: 12px; padding: 11px 20px; border-bottom: 1px solid var(--surface-3); }
+.task-item:last-child { border-bottom: none; }
+.task-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.task-item-text strong { font-size: 0.95rem; color: var(--ink-900); }
+.task-item-text span { font-size: 0.84rem; color: var(--ink-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-item .btn { margin-bottom: 3px; }
+.task-more { margin: 4px 14px 12px; }
+@media (max-width: 640px) {
+  .brief { padding: 18px; }
+  .brief-title { font-size: 1.5rem; }
+  .task-item { flex-wrap: wrap; }
+}
+
+/* ==========================================================================
+   סגירת חודש (מסך כספים)
+   ========================================================================== */
+.close-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; box-shadow: inset 0 4px 0 var(--gold-500); }
+.close-head { display: flex; align-items: center; gap: 14px; padding: 20px 20px 12px; flex-wrap: wrap; }
+.close-head-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: var(--gold-500); color: var(--petrol-950); flex-shrink: 0; }
+.close-head-text { flex: 1; min-width: 200px; }
+.close-head-text h2 { font-size: 1.25rem; font-weight: 700; color: var(--ink-900); }
+.close-head-text p { font-size: 0.9rem; color: var(--ink-600); margin-top: 2px; }
+.close-progress { padding: 0 20px 16px; }
+.close-progress .progress-bar { background: linear-gradient(90deg, var(--gold-500), var(--success)); }
+
+.close-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; padding: 0 20px 20px; }
+.close-step { --st: var(--sky-600); border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: var(--surface-2); display: flex; flex-direction: column; gap: 8px; }
+.close-step--hiyuvit { --st: var(--gold-600); }
+.close-step--receipts { --st: var(--success); }
+.close-step--expenses { --st: var(--coral-600); }
+.close-step.is-done { background: var(--success-bg); border-color: var(--success-border); }
+.close-step-top { display: flex; align-items: center; gap: 10px; }
+.close-step-num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; font-weight: 800; font-size: 0.95rem; background: var(--surface); color: var(--st); border: 2px solid var(--st); }
+.close-step.is-done .close-step-num { background: var(--success); color: #FFFFFF; border-color: var(--success); }
+.close-step-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink-900); }
+.close-step-title svg { color: var(--st); }
+.close-step-status { font-size: 0.86rem; color: var(--ink-600); font-weight: 500; min-height: 1.4em; }
+.close-step.is-done .close-step-status { color: #087A3B; font-weight: 600; }
+.close-step-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+
+.close-done { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 20px 20px; padding: 12px 16px; border-radius: 14px; background: var(--success-bg); color: #075E2E; font-weight: 700; border: 1px solid var(--success-border); }
+.close-done .btn { margin-inline-start: auto; }
+
+.close-open-list { list-style: none; border-top: 1px solid var(--surface-3); }
+.close-open-list li { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--surface-3); flex-wrap: wrap; }
+.close-open-list li:last-child { border-bottom: none; }
+.close-missing { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }

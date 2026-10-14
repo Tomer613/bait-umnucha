@@ -1,10 +1,10 @@
 // ==========================================================================
-// בית ומנוחה - כספים: קליטת קובצי בנק/חיובית, הזנה ידנית, יומן תנועות וגביות מיוחדות
+// בית ומנוחה - כספים: סגירת חודש (בנק, חיובית, הכנסות והוצאות במזומן), יומן תנועות וגביות מיוחדות
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { parseBankReport, parseHiyuvitReport } from '../utils/csvParser';
-import { RECEIPT_TYPES, OTHER_CATEGORY } from '../data/initialData';
+import { OTHER_CATEGORY } from '../data/initialData';
 import {
   UploadCloud,
   CreditCard,
@@ -16,10 +16,15 @@ import {
   Receipt,
   Wrench,
   CheckCircle2,
-  ChevronLeft
+  ChevronLeft,
+  CalendarCheck,
+  Check
 } from 'lucide-react';
 import { PageHeader, Kpi, SubTabs, Segmented, Modal, Field, EmptyState, BuildingName, FlashMessage, useFlash } from './ui';
 import SpecialLevies from './SpecialLevies';
+import { CLOSE_STEPS, getMonthClose, closeStatus, isMonthClosed, missingSteps } from '../utils/monthClose';
+
+const STEP_ICONS = { bank: UploadCloud, hiyuvit: CreditCard, receipts: PlusCircle, expenses: MinusCircle };
 import { formatILS, formatMonth, monthName, splitInOut, sumBy, withBuilding, todayISO, aptDebt, requestBuildingPick } from '../utils/format';
 
 const SOURCE_BADGE = {
@@ -43,7 +48,7 @@ export default function FinancialsView() {
         active={subTab}
         onChange={setActiveSubTab}
         tabs={[
-          { id: 'transactions', label: 'קליטה ותנועות', icon: Receipt },
+          { id: 'transactions', label: 'סגירת חודש ותנועות', icon: Receipt },
           { id: 'levies', label: 'גביות מיוחדות', icon: Wrench }
         ]}
       />
@@ -63,22 +68,23 @@ function Transactions() {
     ingestHiyuvitReport,
     currentMonth,
     expenseCategories,
-    addExpenseCategory
+    addExpenseCategory,
+    setCloseStep,
+    reopenMonth
   } = useApp();
 
   const isGlobalMode = !currentBuilding;
 
-  // קליטה והזנה נעשות לבניין מסוים בלבד — הבניין שנבחר ב"עובדים על" למעלה
+  // העלאה והזנה נעשות לבניין שנבחר בתפריט הבניינים
   const targetBuilding = currentBuilding;
 
   const [flash, showFlash] = useFlash();
   const [sourceFilter, setSourceFilter] = useState('all');
 
-  // --- מודל תקבול ---
+  // --- מודל הכנסה במזומן ---
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptAptId, setReceiptAptId] = useState('');
   const [receiptAmount, setReceiptAmount] = useState('');
-  const [receiptType, setReceiptType] = useState(RECEIPT_TYPES[0]);
   const [receiptNotes, setReceiptNotes] = useState('');
   const [selectedPaidMonths, setSelectedPaidMonths] = useState([]);
 
@@ -117,12 +123,39 @@ function Transactions() {
 
   const selectedApt = (targetBuilding?.apartments || []).find(a => a.id === receiptAptId);
 
+  // סגירת חודש
+  const closeRec = currentBuilding ? getMonthClose(currentBuilding, currentMonth) : {};
+  const status = currentBuilding ? closeStatus(currentBuilding, currentMonth) : null;
+  const openBuildings = buildings.filter(b => !isMonthClosed(b, currentMonth));
+  const closedCount = buildings.length - openBuildings.length;
+  const monthOf = (b) => (b?.expenses || []).filter(e => e.month === currentMonth);
+  // הכנסות במזומן: תשלומים שדיירים מסרו ביד (העברות וצ'קים נכנסים דרך דו"ח העו"ש)
+  const receiptsThisMonth = monthOf(currentBuilding).filter(e => e.amount < 0 && e.source === 'מזומן');
+  const cashOutThisMonth = monthOf(currentBuilding).filter(e => e.source === 'מזומן' && e.amount > 0);
+
+  const stepStatusText = (stepId, rec) => {
+    if (stepId === 'receipts') {
+      const sum = receiptsThisMonth.reduce((t, e) => t + Math.abs(e.amount), 0);
+      const count = receiptsThisMonth.length ? `${receiptsThisMonth.length} הכנסות · ${formatILS(sum)}` : 'לא נרשמו הכנסות';
+      return rec.done ? `✓ אושר · ${count}` : count;
+    }
+    if (stepId === 'expenses') {
+      const sum = cashOutThisMonth.reduce((t, e) => t + e.amount, 0);
+      const count = cashOutThisMonth.length ? `${cashOutThisMonth.length} הוצאות · ${formatILS(sum)}` : 'לא נרשמו הוצאות';
+      return rec.done ? `✓ אושר · ${count}` : count;
+    }
+    if (!rec.done) return 'הקובץ עוד לא הועלה';
+    // הועלה קובץ — מה נקלט ממנו; סומן ידנית — מה שאושר (למשל "אין תנועות בבנק החודש")
+    const step = CLOSE_STEPS.find(x => x.id === stepId);
+    return `✓ אושר · ${rec.note || step.manualLabel}`;
+  };
+
   // ------------------------------------------------------------------------
   // פעולות
   // ------------------------------------------------------------------------
   const requireTarget = () => {
     if (targetBuilding) return true;
-    requestBuildingPick('לאיזה בניין לקלוט? בחרו בניין כדי להמשיך');
+    requestBuildingPick('לאיזה בניין? בחרו בניין כדי להמשיך');
     return false;
   };
 
@@ -148,8 +181,8 @@ function Transactions() {
   const submitReceipt = (e) => {
     e.preventDefault();
     if (!targetBuilding || !receiptAptId || !receiptAmount) return;
-    recordManualReceipt(targetBuilding.id, receiptAptId, receiptAmount, selectedPaidMonths, receiptNotes, receiptType);
-    showFlash(`תקבול של ${formatILS(receiptAmount)} נרשם בבניין ${targetBuilding.name}.`);
+    recordManualReceipt(targetBuilding.id, receiptAptId, receiptAmount, selectedPaidMonths, receiptNotes, 'מזומן');
+    showFlash(`הכנסה במזומן של ${formatILS(receiptAmount)} נרשמה בבניין ${targetBuilding.name}.`);
     closeReceipt();
   };
 
@@ -185,36 +218,117 @@ function Transactions() {
     <>
       <FlashMessage flash={flash} />
 
-      {isGlobalMode && (
-        <div className="alert alert-info">
-          קליטת קבצים והזנה ידנית נעשות לבניין מסוים. בחרו בניין מתפריט הבניינים, או לחצו על פעולה והתפריט ייפתח.
-        </div>
-      )}
+      {/* סגירת חודש — צ'קליסט של 4 שלבים; ב"כלל הבניינים" — התקדמות ורשימת הבניינים הפתוחים */}
+      <section className="close-card">
+        <header className="close-head">
+          <span className="close-head-icon"><CalendarCheck size={22} /></span>
+          <div className="close-head-text">
+            <h2>סגירת חודש {monthName(currentMonth)}</h2>
+            <p>
+              {isGlobalMode
+                ? `${closedCount} מתוך ${buildings.length} בניינים סגרו את החודש`
+                : status.id === 'closed'
+                  ? 'כל ארבעת השלבים סומנו — נתוני החודש סופיים.'
+                  : 'סמנו כל שלב כשסיימתם אותו. כשכל הארבעה מסומנים — החודש נסגר.'}
+            </p>
+          </div>
+          {isGlobalMode ? (
+            <span className={`badge badge-dot ${closedCount === buildings.length ? 'badge-success' : 'badge-warning'}`}>
+              {closedCount === buildings.length ? 'כל הבניינים סגרו' : `${buildings.length - closedCount} פתוחים`}
+            </span>
+          ) : (
+            <span className={`badge badge-dot ${status.id === 'closed' ? 'badge-success' : 'badge-warning'}`}>{status.label}</span>
+          )}
+        </header>
 
-      <div className="action-grid">
-        <label className="action-tile action-tile--petrol">
-          <input type="file" accept=".csv" hidden onChange={(e) => readCsv(e, parseBankReport, ingestBankReport, 'עו״ש הבנק')} onClick={(e) => { if (!requireTarget()) e.preventDefault(); }} />
-          <span className="action-tile-icon"><UploadCloud size={20} /></span>
-          <span><span className="action-tile-title">דו״ח עו״ש בנק</span><span className="action-tile-sub">העלאת קובץ CSV</span></span>
-          <span className="action-tile-go"><ChevronLeft size={18} /></span>
-        </label>
-        <label className="action-tile action-tile--gold">
-          <input type="file" accept=".csv" hidden onChange={(e) => readCsv(e, parseHiyuvitReport, ingestHiyuvitReport, 'חיובית')} onClick={(e) => { if (!requireTarget()) e.preventDefault(); }} />
-          <span className="action-tile-icon"><CreditCard size={20} /></span>
-          <span><span className="action-tile-title">דו״ח חיובית</span><span className="action-tile-sub">גבייה באשראי ומס״ב</span></span>
-          <span className="action-tile-go"><ChevronLeft size={18} /></span>
-        </label>
-        <button type="button" className="action-tile action-tile--green" onClick={() => requireTarget() && setShowReceiptModal(true)}>
-          <span className="action-tile-icon"><PlusCircle size={20} /></span>
-          <span><span className="action-tile-title">תקבול ידני</span><span className="action-tile-sub">מזומן, העברה או צ׳ק</span></span>
-          <span className="action-tile-go"><ChevronLeft size={18} /></span>
-        </button>
-        <button type="button" className="action-tile action-tile--coral" onClick={() => requireTarget() && setShowExpenseModal(true)}>
-          <span className="action-tile-icon"><MinusCircle size={20} /></span>
-          <span><span className="action-tile-title">הוצאת מזומן</span><span className="action-tile-sub">רישום הוצאה מהקופה</span></span>
-          <span className="action-tile-go"><ChevronLeft size={18} /></span>
-        </button>
-      </div>
+        <div className="close-progress">
+          <div className="progress">
+            <div
+              className="progress-bar"
+              style={{ width: `${isGlobalMode ? (closedCount / (buildings.length || 1)) * 100 : (status.done / CLOSE_STEPS.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {isGlobalMode ? (
+          openBuildings.length === 0 ? (
+            <div className="close-done"><CheckCircle2 size={20} /> כל הבניינים סגרו את חודש {monthName(currentMonth)}.</div>
+          ) : (
+            <ul className="close-open-list">
+              {openBuildings.map(b => (
+                <li key={b.id}>
+                  <BuildingName name={b.name} color={b.color} />
+                  <span className="close-missing">
+                    {missingSteps(b, currentMonth).map(st => <span key={st.id} className="badge badge-warning">{st.short}</span>)}
+                  </span>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedBuildingId(b.id)}>
+                    לסגירת החודש <ChevronLeft size={15} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : (
+          <>
+            <div className="close-steps">
+              {CLOSE_STEPS.map((st, i) => {
+                const rec = closeRec[st.id] || {};
+                const Icon = STEP_ICONS[st.id];
+                return (
+                  <div key={st.id} className={`close-step close-step--${st.id}${rec.done ? ' is-done' : ''}`}>
+                    <div className="close-step-top">
+                      <span className="close-step-num">{rec.done ? <Check size={16} strokeWidth={3} /> : i + 1}</span>
+                      <span className="close-step-title"><Icon size={17} /> {st.label}</span>
+                    </div>
+                    <p className="close-step-status">{stepStatusText(st.id, rec)}</p>
+                    <div className="close-step-actions">
+                      {st.id === 'bank' && (
+                        <label className="btn btn-primary btn-sm">
+                          <UploadCloud size={15} /> העלאת קובץ
+                          <input type="file" accept=".csv" hidden onChange={(e) => readCsv(e, parseBankReport, ingestBankReport, 'עו״ש הבנק')} />
+                        </label>
+                      )}
+                      {st.id === 'hiyuvit' && (
+                        <label className="btn btn-primary btn-sm">
+                          <CreditCard size={15} /> העלאת קובץ
+                          <input type="file" accept=".csv" hidden onChange={(e) => readCsv(e, parseHiyuvitReport, ingestHiyuvitReport, 'חיובית')} />
+                        </label>
+                      )}
+                      {st.id === 'receipts' && (
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowReceiptModal(true)}>
+                          <PlusCircle size={15} /> הזנת הכנסה
+                        </button>
+                      )}
+                      {st.id === 'expenses' && (
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowExpenseModal(true)}>
+                          <MinusCircle size={15} /> הזנת הוצאה
+                        </button>
+                      )}
+                      {rec.done ? (
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCloseStep(currentBuilding.id, currentMonth, st.id, { done: false })}>
+                          ביטול הסימון
+                        </button>
+                      ) : (
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCloseStep(currentBuilding.id, currentMonth, st.id, { done: true, auto: false, note: st.manualLabel })}>
+                          <Check size={15} /> {st.manualLabel}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {status.id === 'closed' && (
+              <div className="close-done">
+                <CheckCircle2 size={20} /> חודש {monthName(currentMonth)} סגור.
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => reopenMonth(currentBuilding.id, currentMonth)}>
+                  פתיחה מחדש לתיקון
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <div className="kpi-grid">
         <Kpi variant="hero" icon={Wallet} label={isGlobalMode ? 'יתרה בכל הקופות' : 'יתרת קופה'} value={formatILS(balance)} meta={isGlobalMode ? `ב-${buildings.length} חשבונות` : currentBuilding.bankAccount} />
@@ -241,7 +355,7 @@ function Transactions() {
           <EmptyState
             icon={Receipt}
             title="אין תנועות לחודש זה"
-            text="העלו קובץ בנק או חיובית, או הזינו תקבול או הוצאה ידנית בכפתורים שלמעלה."
+            text="העלו קובץ בנק או חיובית, או הזינו הכנסה או הוצאה במזומן בכרטיס סגירת החודש."
           />
         ) : (
           <div className="table-wrap">
@@ -281,12 +395,12 @@ function Transactions() {
         )}
       </div>
 
-      {/* מודל: תקבול ידני */}
+      {/* מודל: הכנסה במזומן */}
       <Modal
         isOpen={showReceiptModal}
         onClose={closeReceipt}
-        title="תקבול ידני"
-        subtitle={targetBuilding ? <><BuildingName name={targetBuilding.name} color={targetBuilding.color} /> · החודשים המסומנים ייסגרו כחוב</> : ''}
+        title="הכנסה במזומן"
+        subtitle={targetBuilding ? <><BuildingName name={targetBuilding.name} color={targetBuilding.color} /> · תשלום שדייר מסר ביד. החודשים המסומנים ייסגרו כחוב</> : ''}
       >
         <form onSubmit={submitReceipt} className="form-stack">
           <Field label="דירה ודייר">
@@ -325,22 +439,16 @@ function Transactions() {
           )}
 
           <div className="field-row">
-            <Field label="סכום (₪)">
+            <Field label="סכום במזומן (₪)">
               <input type="number" required min="1" value={receiptAmount} onChange={(e) => setReceiptAmount(e.target.value)} className="input" placeholder="300" />
             </Field>
-            <Field label="אופן התשלום">
-              <select value={receiptType} onChange={(e) => setReceiptType(e.target.value)} className="select">
-                {RECEIPT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+            <Field label="הערה (לא חובה)">
+              <input type="text" value={receiptNotes} onChange={(e) => setReceiptNotes(e.target.value)} className="input" placeholder="למשל: נמסר לנציג הוועד" />
             </Field>
           </div>
 
-          <Field label="הערה או אסמכתא (לא חובה)">
-            <input type="text" value={receiptNotes} onChange={(e) => setReceiptNotes(e.target.value)} className="input" placeholder="למשל: נמסר לנציג הוועד / אסמכתא 54321" />
-          </Field>
-
           <div className="modal-actions">
-            <button type="submit" className="btn btn-primary">שמירת התקבול</button>
+            <button type="submit" className="btn btn-primary">שמירת ההכנסה</button>
             <button type="button" onClick={closeReceipt} className="btn btn-secondary">ביטול</button>
           </div>
         </form>

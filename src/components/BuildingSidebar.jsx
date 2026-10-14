@@ -2,18 +2,19 @@
 // בית ומנוחה - תפריט צד לבחירת בניין
 // במסך רחב: קבוע לצד התוכן, וניתן לכווץ לפס צר של שלטים בלבד (הבחירה נשמרת).
 // במסך צר: מגירה שנפתחת מפס הבניין שמתחת לניווט.
-// ליד כל בניין מסומן אם יש חוב פתוח או קליטה שממתינה.
+// ליד כל בניין מסומן אם יש חוב פתוח או חודש שעוד לא נסגר.
 // ==========================================================================
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, X, Check, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { BuildingAvatar, AllBuildingsAvatar } from './ui';
 import { buildingDebt, formatILS, sumBy } from '../utils/format';
+import { isMonthClosed } from '../utils/monthClose';
 
 const COLLAPSE_KEY = 'bait_umnucha_sidebar_collapsed';
 
 export default function BuildingSidebar() {
-  const { buildings, selectedBuildingId, setSelectedBuildingId, activeTab, setActiveTab } = useApp();
+  const { buildings, selectedBuildingId, setSelectedBuildingId, activeTab, setActiveTab, currentMonth } = useApp();
   const [isOpen, setIsOpen] = useState(false);       // מגירה במסך צר
   const [hint, setHint] = useState('');
   const [attention, setAttention] = useState(false); // הבהוב כשפעולה מבקשת בחירת בניין
@@ -147,7 +148,7 @@ export default function BuildingSidebar() {
                 </span>
                 <span className="sb-marks">
                   {debt > 0 && <span className="sb-mark sb-mark--debt" title={`חוב פתוח: ${formatILS(debt)}`} />}
-                  {!b.statusMonthUpdated && <span className="sb-mark sb-mark--pending" title="ממתין לקליטת קובצי החודש" />}
+                  {!isMonthClosed(b, currentMonth) && <span className="sb-mark sb-mark--pending" title="ממתין לסגירת חודש" />}
                 </span>
               </button>
             );
@@ -156,7 +157,7 @@ export default function BuildingSidebar() {
 
         <div className="sidebar-legend">
           <span><span className="sb-mark sb-mark--debt" /> חוב פתוח</span>
-          <span><span className="sb-mark sb-mark--pending" /> ממתין לקליטה</span>
+          <span><span className="sb-mark sb-mark--pending" /> חודש לא סגור</span>
         </div>
       </aside>
     </>

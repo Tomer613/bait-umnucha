@@ -1,7 +1,7 @@
 // ==========================================================================
 // בית ומנוחה - אשף מכתבים, מודעות תלייה ותפוצה במייל (בניין יחיד או כלל הבניינים)
 // ==========================================================================
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { LETTER_TEMPLATES } from '../data/initialData';
 import { formatFormattedDate } from '../utils/hebrewDate';
@@ -9,16 +9,23 @@ import { Send, Printer, Users, Copy, Check } from 'lucide-react';
 import { Field, BuildingAvatar, AllBuildingsAvatar } from './ui';
 
 export default function LetterWizard() {
-  const { currentBuilding, buildings, systemSettings } = useApp();
+  const { currentBuilding, buildings, systemSettings, letterPreset, setLetterPreset } = useApp();
+  // אם הגענו ממשימה (למשל מכתב התראה) — פותחים עם התבנית שלה
+  const initialTemplate = LETTER_TEMPLATES.find(t => t.id === letterPreset) || LETTER_TEMPLATES[0];
 
   const isGlobalMode = !currentBuilding;
   const companyName = systemSettings?.companyName || 'בית ומנוחה';
 
   const categories = Array.from(new Set(LETTER_TEMPLATES.map(t => t.category)));
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(LETTER_TEMPLATES[0].id);
-  const [editedTitle, setEditedTitle] = useState(LETTER_TEMPLATES[0].title);
-  const [editedContent, setEditedContent] = useState(LETTER_TEMPLATES[0].content);
+  const [selectedCategory, setSelectedCategory] = useState(initialTemplate.category);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(initialTemplate.id);
+  const [editedTitle, setEditedTitle] = useState(initialTemplate.title);
+  const [editedContent, setEditedContent] = useState(initialTemplate.content);
+
+  // הבחירה המוקדמת חד-פעמית
+  useEffect(() => {
+    if (letterPreset) setLetterPreset(null);
+  }, [letterPreset, setLetterPreset]);
   const [copied, setCopied] = useState(false);
 
   const filteredTemplates = LETTER_TEMPLATES.filter(t => t.category === selectedCategory);
