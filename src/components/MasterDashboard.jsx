@@ -380,29 +380,14 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
       
       {/* Welcome & Overview Header */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16,
         marginBottom: 24
       }}>
-        <div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-            מרכז שליטה — מבט-על לכלל הבניינים
-          </h2>
-          <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem' }}>
-            מרכז שליטה וניהול עבור {buildings.length} הבניינים המנוהלים בחברת בית ומנוחה
-          </p>
-        </div>
-
-        <button 
-          onClick={onOpenAddBuilding}
-          className="btn btn-primary btn-lg"
-        >
-          <PlusCircle size={20} />
-          <span>הוספת בניין חדש</span>
-        </button>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+          מרכז שליטה — מבט-על לכלל הבניינים
+        </h2>
+        <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem', marginTop: 4 }}>
+          מרכז שליטה וניהול עבור {buildings.length} הבניינים המנוהלים בחברת בית ומנוחה
+        </p>
       </div>
 
       {/* Top Statistic Cards */}
