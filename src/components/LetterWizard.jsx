@@ -402,8 +402,12 @@ export default function LetterWizard() {
             </div>
             <div>
               {systemSettings?.companyPhone ? `${systemSettings.companyPhone} | ` : ''}
-              {systemSettings?.companyEmail ? `מייל: ${systemSettings.companyEmail}` : ''}
-              {systemSettings?.companyEmailSecondary ? ` / ${systemSettings.companyEmailSecondary}` : ''}
+              {systemSettings?.emailList && systemSettings.emailList.length > 0
+                ? systemSettings.emailList
+                    .filter(e => e.email?.trim())
+                    .map(e => e.label?.trim() ? `${e.label.trim()}: ${e.email.trim()}` : e.email.trim())
+                    .join(' | ')
+                : (systemSettings?.companyEmail ? `מייל: ${systemSettings.companyEmail}` : '')}
             </div>
           </div>
 

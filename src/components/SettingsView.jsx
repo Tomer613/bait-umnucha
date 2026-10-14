@@ -173,52 +173,126 @@ export default function SettingsView({ onOpenAddBuilding }) {
   });
 
   // --- הגדרות מערכת ואתר ---
-  const [prefForm, setPrefForm] = useState({
-    useHebrewDateDefault: systemSettings?.useHebrewDateDefault ?? true,
-    hebrewDateFormat: systemSettings?.hebrewDateFormat || 'both',
-    noticeHeaderPrefix: systemSettings?.noticeHeaderPrefix || 'בס״ד',
-    noticeSignoff: systemSettings?.noticeSignoff || 'בברכת ועד הבית וההנהלה, בית ומנוחה',
-    companyName: systemSettings?.companyName || 'בית ומנוחה',
-    managerName: systemSettings?.managerName || 'ישי לוי',
-    phoneCalls: systemSettings?.phoneCalls || '052-7623803',
-    phoneWhatsapp: systemSettings?.phoneWhatsapp || '055-6704029',
-    companyPhone: systemSettings?.companyPhone || 'שיחות: 052-7623803 | וואטסאפ: 055-6704029',
-    companyEmail: systemSettings?.companyEmail || 'bm4923359@gmail.com',
-    companyEmailSecondary: systemSettings?.companyEmailSecondary || '9926606@gmail.com',
-    defaultMonthlyDues: systemSettings?.defaultMonthlyDues || 300,
-    enableIssuesModule: systemSettings?.enableIssuesModule ?? true
+  const [prefForm, setPrefForm] = useState(() => {
+    const pList = systemSettings?.phoneList && systemSettings.phoneList.length > 0
+      ? systemSettings.phoneList
+      : [
+          { id: 'phone-1', number: systemSettings?.phoneCalls || '052-7623803', label: 'לשיחות בלבד' },
+          { id: 'phone-2', number: systemSettings?.phoneWhatsapp || '055-6704029', label: 'וואטסאפ בלבד' }
+        ];
+
+    const eList = systemSettings?.emailList && systemSettings.emailList.length > 0
+      ? systemSettings.emailList
+      : [
+          { id: 'email-1', email: systemSettings?.companyEmail || 'bm4923359@gmail.com', label: 'ראשי' },
+          { id: 'email-2', email: systemSettings?.companyEmailSecondary || '9926606@gmail.com', label: 'משני' }
+        ];
+
+    return {
+      useHebrewDateDefault: systemSettings?.useHebrewDateDefault ?? true,
+      hebrewDateFormat: systemSettings?.hebrewDateFormat || 'both',
+      noticeHeaderPrefix: systemSettings?.noticeHeaderPrefix || 'בס״ד',
+      noticeSignoff: systemSettings?.noticeSignoff || 'בברכת ועד הבית וההנהלה, בית ומנוחה',
+      companyName: systemSettings?.companyName || 'בית ומנוחה',
+      managerName: systemSettings?.managerName || 'ישי לוי',
+      phoneList: pList,
+      emailList: eList,
+      companyPhone: systemSettings?.companyPhone || 'שיחות: 052-7623803 | וואטסאפ: 055-6704029',
+      defaultMonthlyDues: systemSettings?.defaultMonthlyDues || 300,
+      enableIssuesModule: systemSettings?.enableIssuesModule ?? true
+    };
   });
 
   useEffect(() => {
     if (systemSettings) {
-      setPrefForm(prev => ({
-        ...prev,
-        useHebrewDateDefault: systemSettings.useHebrewDateDefault ?? prev.useHebrewDateDefault,
-        hebrewDateFormat: systemSettings.hebrewDateFormat || prev.hebrewDateFormat,
-        noticeHeaderPrefix: systemSettings.noticeHeaderPrefix || prev.noticeHeaderPrefix,
-        noticeSignoff: systemSettings.noticeSignoff || prev.noticeSignoff,
-        companyName: systemSettings.companyName || prev.companyName,
-        managerName: systemSettings.managerName || prev.managerName,
-        phoneCalls: systemSettings.phoneCalls || prev.phoneCalls,
-        phoneWhatsapp: systemSettings.phoneWhatsapp || prev.phoneWhatsapp,
-        companyPhone: systemSettings.companyPhone || prev.companyPhone,
-        companyEmail: systemSettings.companyEmail || prev.companyEmail,
-        companyEmailSecondary: systemSettings.companyEmailSecondary || prev.companyEmailSecondary,
-        defaultMonthlyDues: systemSettings.defaultMonthlyDues || prev.defaultMonthlyDues,
-        enableIssuesModule: systemSettings.enableIssuesModule ?? prev.enableIssuesModule
-      }));
+      setPrefForm(prev => {
+        const pList = systemSettings.phoneList && systemSettings.phoneList.length > 0
+          ? systemSettings.phoneList
+          : prev.phoneList;
+        const eList = systemSettings.emailList && systemSettings.emailList.length > 0
+          ? systemSettings.emailList
+          : prev.emailList;
+
+        return {
+          ...prev,
+          useHebrewDateDefault: systemSettings.useHebrewDateDefault ?? prev.useHebrewDateDefault,
+          hebrewDateFormat: systemSettings.hebrewDateFormat || prev.hebrewDateFormat,
+          noticeHeaderPrefix: systemSettings.noticeHeaderPrefix || prev.noticeHeaderPrefix,
+          noticeSignoff: systemSettings.noticeSignoff || prev.noticeSignoff,
+          companyName: systemSettings.companyName || prev.companyName,
+          managerName: systemSettings.managerName || prev.managerName,
+          phoneList: pList,
+          emailList: eList,
+          companyPhone: systemSettings.companyPhone || prev.companyPhone,
+          defaultMonthlyDues: systemSettings.defaultMonthlyDues || prev.defaultMonthlyDues,
+          enableIssuesModule: systemSettings.enableIssuesModule ?? prev.enableIssuesModule
+        };
+      });
     }
   }, [systemSettings]);
 
+  const handleAddPhone = () => {
+    const newId = `phone-${Date.now()}`;
+    setPrefForm(prev => ({
+      ...prev,
+      phoneList: [...prev.phoneList, { id: newId, number: '', label: '' }]
+    }));
+  };
+
+  const handleUpdatePhone = (id, field, value) => {
+    setPrefForm(prev => ({
+      ...prev,
+      phoneList: prev.phoneList.map(item => item.id === id ? { ...item, [field]: value } : item)
+    }));
+  };
+
+  const handleRemovePhone = (id) => {
+    setPrefForm(prev => ({
+      ...prev,
+      phoneList: prev.phoneList.filter(item => item.id !== id)
+    }));
+  };
+
+  const handleAddEmail = () => {
+    const newId = `email-${Date.now()}`;
+    setPrefForm(prev => ({
+      ...prev,
+      emailList: [...prev.emailList, { id: newId, email: '', label: '' }]
+    }));
+  };
+
+  const handleUpdateEmail = (id, field, value) => {
+    setPrefForm(prev => ({
+      ...prev,
+      emailList: prev.emailList.map(item => item.id === id ? { ...item, [field]: value } : item)
+    }));
+  };
+
+  const handleRemoveEmail = (id) => {
+    setPrefForm(prev => ({
+      ...prev,
+      emailList: prev.emailList.filter(item => item.id !== id)
+    }));
+  };
+
   const handleSavePreferences = (e) => {
     e.preventDefault();
-    const phoneParts = [];
-    if (prefForm.phoneCalls?.trim()) phoneParts.push(`שיחות: ${prefForm.phoneCalls.trim()}`);
-    if (prefForm.phoneWhatsapp?.trim()) phoneParts.push(`וואטסאפ: ${prefForm.phoneWhatsapp.trim()}`);
-    const autoCompanyPhone = phoneParts.length > 0 ? phoneParts.join(' | ') : prefForm.companyPhone;
+    const phoneParts = prefForm.phoneList
+      .filter(p => p.number && p.number.trim())
+      .map(p => p.label && p.label.trim() ? `${p.label.trim()}: ${p.number.trim()}` : p.number.trim());
+    const autoCompanyPhone = phoneParts.length > 0 ? phoneParts.join(' | ') : '';
+
+    const primaryPhone = prefForm.phoneList[0]?.number || '';
+    const whatsappPhone = prefForm.phoneList.find(p => p.label?.includes('וואטסאפ') || p.label?.includes('ווצאפ'))?.number || prefForm.phoneList[1]?.number || '';
+    const primaryEmail = prefForm.emailList[0]?.email || '';
+    const secondaryEmail = prefForm.emailList[1]?.email || '';
 
     const dataToSave = {
       ...prefForm,
+      phoneCalls: primaryPhone,
+      phoneWhatsapp: whatsappPhone,
+      companyEmail: primaryEmail,
+      companyEmailSecondary: secondaryEmail,
       companyPhone: prefForm.companyPhone?.trim() ? prefForm.companyPhone : autoCompanyPhone
     };
     updateSystemSettings(dataToSave);
@@ -1371,68 +1445,309 @@ export default function SettingsView({ onOpenAddBuilding }) {
                   style={{ width: '100%' }}
                 />
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                  טלפון לשיחות בלבד:
-                </label>
-                <input
-                  type="text"
-                  value={prefForm.phoneCalls}
-                  onChange={(e) => setPrefForm({ ...prefForm, phoneCalls: e.target.value })}
-                  placeholder="052-7623803"
-                  className="input"
-                  dir="ltr"
-                  style={{ width: '100%', textAlign: 'right' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                  טלפון לוואטסאפ בלבד:
-                </label>
-                <input
-                  type="text"
-                  value={prefForm.phoneWhatsapp}
-                  onChange={(e) => setPrefForm({ ...prefForm, phoneWhatsapp: e.target.value })}
-                  placeholder="055-6704029"
-                  className="input"
-                  dir="ltr"
-                  style={{ width: '100%', textAlign: 'right' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                  כתובת דוא״ל ראשית:
-                </label>
-                <input
-                  type="email"
-                  value={prefForm.companyEmail}
-                  onChange={(e) => setPrefForm({ ...prefForm, companyEmail: e.target.value })}
-                  placeholder="bm4923359@gmail.com"
-                  className="input"
-                  dir="ltr"
-                  style={{ width: '100%', textAlign: 'right' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                  כתובת דוא״ל משנית:
-                </label>
-                <input
-                  type="email"
-                  value={prefForm.companyEmailSecondary}
-                  onChange={(e) => setPrefForm({ ...prefForm, companyEmailSecondary: e.target.value })}
-                  placeholder="9926606@gmail.com"
-                  className="input"
-                  dir="ltr"
-                  style={{ width: '100%', textAlign: 'right' }}
-                />
-              </div>
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
-                שורת יצירת קשר משולבת לדוחות ומכתבים:
-              </label>
+            {/* מספרי טלפון - רשימה דינמית עם הוספה והסרה */}
+            <div style={{
+              marginTop: 20,
+              padding: '16px 18px',
+              background: 'var(--color-cream-subtle)',
+              borderRadius: 'var(--radius-md)',
+              border: '1.5px solid var(--color-border-card)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Phone size={18} color="var(--color-gold-600)" />
+                  <span style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
+                    מספרי טלפון ליצירת קשר ({prefForm.phoneList.length})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddPhone}
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-full)',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    border: '1.5px solid var(--color-gold-500)',
+                    background: '#FFFFFF',
+                    color: 'var(--color-gold-800)',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-xs)'
+                  }}
+                >
+                  <PlusCircle size={15} color="var(--color-gold-600)" />
+                  <span>הוסף מספר טלפון</span>
+                </button>
+              </div>
+
+              {prefForm.phoneList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-slate-500)', fontSize: '0.85rem' }}>
+                  לא הוגדרו מספרי טלפון. לחץ על ״הוסף מספר טלפון״ כדי להוסיף.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {prefForm.phoneList.map((item, index) => (
+                    <div
+                      key={item.id || index}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                        background: '#FFFFFF',
+                        padding: '12px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-beige-border)',
+                        boxShadow: 'var(--shadow-xs)',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <div style={{ flex: '1 1 200px' }}>
+                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                          מספר טלפון #{index + 1}:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.number}
+                          onChange={(e) => handleUpdatePhone(item.id, 'number', e.target.value)}
+                          placeholder="למשל: 052-7623803"
+                          className="input"
+                          dir="ltr"
+                          style={{ width: '100%', textAlign: 'right' }}
+                        />
+                      </div>
+
+                      <div style={{ flex: '1.2 1 240px' }}>
+                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                          ייעוד המספר:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.label}
+                          onChange={(e) => handleUpdatePhone(item.id, 'label', e.target.value)}
+                          placeholder="לשיחות בלבד / וואטסאפ בלבד / ראשי / משני"
+                          className="input"
+                          style={{ width: '100%' }}
+                        />
+                        <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
+                          {['לשיחות בלבד', 'וואטסאפ בלבד', 'ראשי', 'משני', 'חירום'].map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => handleUpdatePhone(item.id, 'label', chip)}
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-full)',
+                                border: item.label === chip ? '1px solid var(--color-gold-600)' : '1px solid var(--color-beige-border)',
+                                background: item.label === chip ? 'var(--color-gold-100)' : '#F8FAFC',
+                                color: item.label === chip ? 'var(--color-gold-900)' : 'var(--color-slate-600)',
+                                cursor: 'pointer',
+                                fontWeight: item.label === chip ? 700 : 500
+                              }}
+                            >
+                              {chip}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* כפתור הסרה X מודגש */}
+                      <div style={{ paddingTop: 20 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePhone(item.id)}
+                          title="הסר מספר זה"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 38,
+                            height: 38,
+                            borderRadius: 'var(--radius-md)',
+                            border: '1.5px solid #FCA5A5',
+                            background: '#FEF2F2',
+                            color: '#DC2626',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* כתובות דוא״ל - רשימה דינמית עם הוספה והסרה */}
+            <div style={{
+              marginTop: 18,
+              padding: '16px 18px',
+              background: 'var(--color-cream-subtle)',
+              borderRadius: 'var(--radius-md)',
+              border: '1.5px solid var(--color-border-card)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Mail size={18} color="var(--color-gold-600)" />
+                  <span style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
+                    כתובות דוא״ל ליצירת קשר ({prefForm.emailList.length})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddEmail}
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-full)',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    border: '1.5px solid var(--color-gold-500)',
+                    background: '#FFFFFF',
+                    color: 'var(--color-gold-800)',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-xs)'
+                  }}
+                >
+                  <PlusCircle size={15} color="var(--color-gold-600)" />
+                  <span>הוסף כתובת דוא״ל</span>
+                </button>
+              </div>
+
+              {prefForm.emailList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-slate-500)', fontSize: '0.85rem' }}>
+                  לא הוגדרו כתובות דוא״ל. לחץ על ״הוסף כתובת דוא״ל״ כדי להוסיף.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {prefForm.emailList.map((item, index) => (
+                    <div
+                      key={item.id || index}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                        background: '#FFFFFF',
+                        padding: '12px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-beige-border)',
+                        boxShadow: 'var(--shadow-xs)',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <div style={{ flex: '1 1 240px' }}>
+                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                          כתובת דוא״ל #{index + 1}:
+                        </label>
+                        <input
+                          type="email"
+                          value={item.email}
+                          onChange={(e) => handleUpdateEmail(item.id, 'email', e.target.value)}
+                          placeholder="למשל: bm4923359@gmail.com"
+                          className="input"
+                          dir="ltr"
+                          style={{ width: '100%', textAlign: 'right' }}
+                        />
+                      </div>
+
+                      <div style={{ flex: '1.2 1 240px' }}>
+                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                          ייעוד הכתובת:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.label}
+                          onChange={(e) => handleUpdateEmail(item.id, 'label', e.target.value)}
+                          placeholder="ראשי / משני / הנהלת חשבונות / פניות"
+                          className="input"
+                          style={{ width: '100%' }}
+                        />
+                        <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
+                          {['ראשי', 'משני', 'הנהלת חשבונות', 'פניות דיירים', 'כללי'].map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => handleUpdateEmail(item.id, 'label', chip)}
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-full)',
+                                border: item.label === chip ? '1px solid var(--color-gold-600)' : '1px solid var(--color-beige-border)',
+                                background: item.label === chip ? 'var(--color-gold-100)' : '#F8FAFC',
+                                color: item.label === chip ? 'var(--color-gold-900)' : 'var(--color-slate-600)',
+                                cursor: 'pointer',
+                                fontWeight: item.label === chip ? 700 : 500
+                              }}
+                            >
+                              {chip}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* כפתור הסרה X מודגש */}
+                      <div style={{ paddingTop: 20 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEmail(item.id)}
+                          title="הסר כתובת זו"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 38,
+                            height: 38,
+                            borderRadius: 'var(--radius-md)',
+                            border: '1.5px solid #FCA5A5',
+                            background: '#FEF2F2',
+                            color: '#DC2626',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700 }}>
+                  שורת יצירת קשר משולבת לדוחות ומכתבים:
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const phoneParts = prefForm.phoneList
+                      .filter(p => p.number && p.number.trim())
+                      .map(p => p.label && p.label.trim() ? `${p.label.trim()}: ${p.number.trim()}` : p.number.trim());
+                    const emailParts = prefForm.emailList
+                      .filter(e => e.email && e.email.trim())
+                      .map(e => e.label && e.label.trim() ? `${e.label.trim()}: ${e.email.trim()}` : e.email.trim());
+                    const combined = [...phoneParts, ...emailParts].join(' | ');
+                    setPrefForm(prev => ({ ...prev, companyPhone: combined }));
+                  }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.75rem', padding: '3px 10px', height: 26 }}
+                >
+                  רענן שורה אוטומטית לפי הרשימות
+                </button>
+              </div>
               <input
                 type="text"
                 value={prefForm.companyPhone}

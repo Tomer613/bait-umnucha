@@ -16,6 +16,14 @@ const DEFAULT_SETTINGS = {
   noticeSignoff: 'בברכת ועד הבית וההנהלה,\nבית ומנוחה',
   companyName: 'בית ומנוחה',
   managerName: 'ישי לוי',
+  phoneList: [
+    { id: 'phone-1', number: '052-7623803', label: 'לשיחות בלבד' },
+    { id: 'phone-2', number: '055-6704029', label: 'וואטסאפ בלבד' }
+  ],
+  emailList: [
+    { id: 'email-1', email: 'bm4923359@gmail.com', label: 'ראשי' },
+    { id: 'email-2', email: '9926606@gmail.com', label: 'משני' }
+  ],
   phoneCalls: '052-7623803',
   phoneWhatsapp: '055-6704029',
   companyPhone: 'שיחות: 052-7623803 | וואטסאפ: 055-6704029',
@@ -66,6 +74,18 @@ export function AppProvider({ children }) {
         }
         if (!parsed.companyPhone || parsed.companyPhone === '02-555-1234') {
           parsed.companyPhone = 'שיחות: 052-7623803 | וואטסאפ: 055-6704029';
+        }
+        if (!parsed.phoneList || !Array.isArray(parsed.phoneList) || parsed.phoneList.length === 0) {
+          parsed.phoneList = [
+            { id: 'phone-1', number: parsed.phoneCalls || '052-7623803', label: 'לשיחות בלבד' },
+            { id: 'phone-2', number: parsed.phoneWhatsapp || '055-6704029', label: 'וואטסאפ בלבד' }
+          ];
+        }
+        if (!parsed.emailList || !Array.isArray(parsed.emailList) || parsed.emailList.length === 0) {
+          parsed.emailList = [
+            { id: 'email-1', email: parsed.companyEmail || 'bm4923359@gmail.com', label: 'ראשי' },
+            { id: 'email-2', email: parsed.companyEmailSecondary || '9926606@gmail.com', label: 'משני' }
+          ];
         }
         return { ...DEFAULT_SETTINGS, ...parsed };
       }
