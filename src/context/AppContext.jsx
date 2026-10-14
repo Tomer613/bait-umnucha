@@ -2,7 +2,7 @@
 // בית ומנוחה - מנהל מצב מרכזי עם שמירה אוטומטית מקומית (LocalStorage)
 // ==========================================================================
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_BUILDINGS, EXPENSE_CATEGORIES, LETTER_TEMPLATES } from '../data/initialData';
+import { INITIAL_BUILDINGS, EXPENSE_CATEGORIES, LETTER_TEMPLATES, BUILDING_COLOR_PALETTE, getBuildingColor } from '../data/initialData';
 
 const AppContext = createContext(null);
 
@@ -13,7 +13,13 @@ export function AppProvider({ children }) {
   const [buildings, setBuildings] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((b, idx) => ({
+          ...b,
+          color: getBuildingColor(b, idx)
+        }));
+      }
     } catch (e) {
       console.error("Failed to load state from localStorage:", e);
     }
@@ -46,6 +52,8 @@ export function AppProvider({ children }) {
   // הוספת בניין חדש (16+)
   const addBuilding = (buildingData) => {
     const newId = `bld-${Date.now()}`;
+    const nextColorIndex = buildings.length % BUILDING_COLOR_PALETTE.length;
+    const assignedColor = buildingData.color || BUILDING_COLOR_PALETTE[nextColorIndex];
     const newBuilding = {
       id: newId,
       name: buildingData.name,
@@ -54,6 +62,7 @@ export function AppProvider({ children }) {
       hiyuvitCode: buildingData.hiyuvitCode || '',
       currentBalance: parseFloat(buildingData.initialBalance) || 0,
       statusMonthUpdated: false,
+      color: assignedColor,
       settings: {
         issuesEnabled: true,
         reportsViewEnabled: false,

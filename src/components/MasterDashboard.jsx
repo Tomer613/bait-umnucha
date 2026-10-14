@@ -42,10 +42,11 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
         
         {/* כותרת עליונה עם חזרה לכל הבניינים */}
         <div style={{
-          background: '#FFFFFF',
+          background: currentBuilding.color ? `linear-gradient(135deg, ${currentBuilding.color.tint} 0%, #FFFFFF 100%)` : '#FFFFFF',
           borderRadius: 'var(--radius-md)',
           padding: '24px 28px',
-          border: '1px solid var(--color-beige-border)',
+          border: `1px solid ${currentBuilding.color?.border || 'var(--color-beige-border)'}`,
+          borderRight: `6px solid ${currentBuilding.color?.primary || 'var(--color-gold-500)'}`,
           boxShadow: 'var(--shadow-sm)',
           marginBottom: 24,
           display: 'flex',
@@ -64,7 +65,22 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
                 <ChevronRight size={16} />
                 <span>חזרה לכלל 15 הבניינים</span>
               </button>
-              <span className="badge badge-gold" style={{ fontSize: '0.8rem' }}>בניין פעיל כעת</span>
+              <span 
+                className="badge" 
+                style={{ 
+                  background: currentBuilding.color?.tagBg || 'var(--color-gold-100)',
+                  color: currentBuilding.color?.text || 'var(--color-gold-700)',
+                  border: `1px solid ${currentBuilding.color?.border || 'var(--color-gold-200)'}`,
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5
+                }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: currentBuilding.color?.primary || 'var(--color-gold-500)' }} />
+                חותמת צבע: {currentBuilding.color?.name || 'פעיל'}
+              </span>
             </div>
             
             <h2 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-brown-900)', lineHeight: 1.2 }}>
@@ -522,10 +538,25 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
                   >
                     {/* Name & Address */}
                     <td style={{ padding: '16px 20px' }}>
-                      <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--color-brown-900)' }}>
-                        {b.name}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span 
+                          style={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            background: b.color?.primary || 'var(--color-gold-500)',
+                            border: '1.5px solid #FFFFFF',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            display: 'inline-block',
+                            flexShrink: 0
+                          }} 
+                          title={`חותמת צבע: ${b.color?.name || ''}`}
+                        />
+                        <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--color-brown-900)' }}>
+                          {b.name}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)', paddingRight: 20 }}>
                         {b.address}
                       </div>
                     </td>

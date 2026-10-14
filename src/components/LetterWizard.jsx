@@ -21,11 +21,10 @@ export default function LetterWizard() {
 
   const [selectedCategory, setSelectedCategory] = useState("גבייה וחובות");
   const [selectedTemplateId, setSelectedTemplateId] = useState("debt-1");
-  const [targetBuildingId, setTargetBuildingId] = useState(currentBuilding ? currentBuilding.id : (buildings[0] ? buildings[0].id : ''));
   const [copiedNotification, setCopiedNotification] = useState(false);
 
-  // הבניין הנבחר למכתב
-  const targetBuilding = buildings.find(b => b.id === targetBuildingId) || currentBuilding || buildings[0];
+  // הבניין הנבחר למכתב - נגזר ישירות מהבחירה בדרופליסט העליון
+  const targetBuilding = currentBuilding || buildings[0];
 
   // רשימת קטגוריות ייחודיות
   const categories = Array.from(new Set(LETTER_TEMPLATES.map(t => t.category)));
@@ -110,20 +109,33 @@ export default function LetterWizard() {
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Target Building Selector */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-700)' }}>
-                בניין יעד למכתב:
-              </label>
-              <select
-                value={targetBuildingId}
-                onChange={(e) => setTargetBuildingId(e.target.value)}
-                className="select"
-              >
-                {buildings.map(b => (
-                  <option key={b.id} value={b.id}>{b.name} — {b.address}</option>
-                ))}
-              </select>
+            {/* Active Building Indicator */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 14px',
+              borderRadius: 'var(--radius-sm)',
+              background: targetBuilding?.color?.tint || 'var(--color-gold-50)',
+              border: `1px solid ${targetBuilding?.color?.border || 'var(--color-gold-200)'}`
+            }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)', display: 'block', fontWeight: 600 }}>
+                  מכתב מיועד עבור הבניין הפעיל:
+                </span>
+                <span style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+                  🏢 {targetBuilding ? `${targetBuilding.name} — ${targetBuilding.address}` : 'בחר בניין בסרגל העליון'}
+                </span>
+              </div>
+              {targetBuilding?.color && (
+                <span style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: '50%',
+                  background: targetBuilding.color.primary,
+                  display: 'inline-block'
+                }} title={`חותמת צבע: ${targetBuilding.color.name}`} />
+              )}
             </div>
 
             {/* Target Audience Summary */}

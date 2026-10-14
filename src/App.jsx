@@ -39,109 +39,20 @@ function MainApp() {
     }
   };
 
+  const activeColor = currentBuilding?.color;
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-cream-bg)' }}>
       <Navbar onOpenAddBuilding={() => setIsAddBuildingOpen(true)} />
-      
-      {/* סרגל הקשר ברור לבניין הנבחר - מוצג בכל הלשוניות כשנבחר בניין ספציפי */}
-      {currentBuilding && selectedBuildingId !== 'all' && (
-        <div style={{
-          background: 'linear-gradient(90deg, #FBF8F1 0%, #FFFFFF 100%)',
-          borderBottom: '1px solid var(--color-gold-300)',
-          boxShadow: '0 2px 8px rgba(184, 142, 62, 0.08)',
-          position: 'sticky',
-          top: 105,
-          zIndex: 90
-        }}>
-          <div style={{
-            maxWidth: 1300,
-            margin: '0 auto',
-            padding: '10px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                gap: 6,
-                background: 'var(--color-gold-100)', 
-                color: 'var(--color-gold-700)', 
-                padding: '4px 10px', 
-                borderRadius: 'var(--radius-full)', 
-                fontWeight: 700, 
-                fontSize: '0.82rem' 
-              }}>
-                <Building2 size={14} />
-                בניין פעיל כעת
-              </span>
 
-              <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-                {currentBuilding.name}
-              </span>
-              <span style={{ color: 'var(--color-brown-500)', fontSize: '0.88rem' }}>
-                ({currentBuilding.address})
-              </span>
-
-              <span style={{
-                background: '#FFFFFF',
-                border: '1px solid var(--color-beige-border)',
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                color: 'var(--color-brown-800)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5
-              }}>
-                <Wallet size={13} color="var(--color-gold-500)" />
-                יתרת קופה: {(currentBuilding.currentBalance || 0).toLocaleString('he-IL')} ₪
-              </span>
-
-              <span style={{
-                background: '#FFFFFF',
-                border: '1px solid var(--color-beige-border)',
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                color: 'var(--color-brown-700)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5
-              }}>
-                <Users size={13} color="var(--color-brown-500)" />
-                {currentBuilding.apartments?.length || 0} דירות
-              </span>
-            </div>
-
-            <button
-              onClick={() => {
-                setSelectedBuildingId('all');
-                setActiveTab('dashboard');
-              }}
-              className="btn btn-secondary btn-sm"
-              style={{
-                border: '1px solid var(--color-gold-300)',
-                background: '#FFFFFF',
-                color: 'var(--color-brown-800)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <X size={15} color="var(--color-danger)" />
-              <span>חזרה למבט כל 15 הבניינים</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      <main style={{ flex: 1, paddingBottom: 60 }}>
+      <main style={{ 
+        flex: 1, 
+        paddingBottom: 60,
+        background: activeColor 
+          ? `linear-gradient(180deg, ${activeColor.tint} 0%, var(--color-cream-bg) 280px)` 
+          : 'var(--color-cream-bg)',
+        transition: 'background 0.35s ease'
+      }}>
         {renderActiveView()}
       </main>
 

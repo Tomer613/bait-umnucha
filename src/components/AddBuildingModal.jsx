@@ -1,12 +1,16 @@
 // ==========================================================================
-// בית ומנוחה - מודל הוספת בניין חדש (16+)
+// בית ומנוחה - מודל הוספת בניין חדש (16+) עם הקצאת חותמת צבע
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { BUILDING_COLOR_PALETTE } from '../data/initialData';
 import { Building2, X } from 'lucide-react';
 
 export default function AddBuildingModal({ isOpen, onClose }) {
-  const { addBuilding } = useApp();
+  const { buildings, addBuilding } = useApp();
+
+  const nextColorIndex = (buildings?.length || 0) % BUILDING_COLOR_PALETTE.length;
+  const [selectedColor, setSelectedColor] = useState(BUILDING_COLOR_PALETTE[nextColorIndex]);
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -25,7 +29,8 @@ export default function AddBuildingModal({ isOpen, onClose }) {
       address: address.trim(),
       bankAccount: bankAccount.trim(),
       hiyuvitCode: hiyuvitCode.trim(),
-      initialBalance: parseFloat(initialBalance) || 0
+      initialBalance: parseFloat(initialBalance) || 0,
+      color: selectedColor
     });
 
     onClose();
@@ -79,6 +84,37 @@ export default function AddBuildingModal({ isOpen, onClose }) {
             />
           </div>
 
+          {/* בחירת חותמת צבע ייחודית לבניין */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-800)' }}>
+              חותמת צבע ייחודית לבניין (מזהה ויזואלי בממשק):
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '8px 10px', background: 'var(--color-cream-subtle)', borderRadius: 'var(--radius-sm)' }}>
+              {BUILDING_COLOR_PALETTE.map((pal) => (
+                <button
+                  key={pal.id}
+                  type="button"
+                  onClick={() => setSelectedColor(pal)}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: pal.primary,
+                    border: selectedColor.id === pal.id ? '3px solid #231812' : '2px solid #FFFFFF',
+                    boxShadow: selectedColor.id === pal.id ? '0 0 0 2px var(--color-gold-500)' : '0 1px 3px rgba(0,0,0,0.15)',
+                    cursor: 'pointer',
+                    transform: selectedColor.id === pal.id ? 'scale(1.15)' : 'scale(1)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title={pal.name}
+                />
+              ))}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: selectedColor.primary, marginTop: 4, fontWeight: 700 }}>
+              ● נבחר: {selectedColor.name} (סרגלים, כפתורים והדגשות יקבלו גוון זה)
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
@@ -124,7 +160,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
               ביטול
             </button>
             <button type="submit" className="btn btn-primary">
-              הקם בניין והתחל לעבוד
+              הקם בניין והקצה חותמת צבע
             </button>
           </div>
         </form>
