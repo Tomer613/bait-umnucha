@@ -15,6 +15,7 @@ import {
   Wrench, 
   MessageSquare,
   Wallet,
+  Settings,
   X
 } from 'lucide-react';
 import BuildingSelectDropdown from './BuildingSelectDropdown';
@@ -99,25 +100,30 @@ export default function Navbar({ onOpenAddBuilding }) {
           </div>
         </div>
 
-        {/* Global Action Controls */}
+        {/* Global Action Controls - מרכז הגדרות ועריכה מרוכז */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
-            onClick={onOpenAddBuilding}
-            className="btn btn-primary btn-sm"
-            title="הקמת בניין חדש במערכת"
-          >
-            <PlusCircle size={16} />
-            <span>בניין חדש</span>
-          </button>
-
-          <button
-            onClick={exportFullBackup}
+            onClick={() => setActiveTab('settings')}
             className="btn btn-secondary btn-sm"
-            title="גיבוי נתונים מלא למחשב"
-            style={{ color: 'var(--color-brown-700)' }}
+            title="מרכז הגדרות ועריכת מערכת"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-md)',
+              border: activeTab === 'settings' ? '1.5px solid var(--color-gold-500)' : '1.5px solid var(--color-border-card)',
+              background: activeTab === 'settings' ? 'var(--color-gold-100)' : '#FFFFFF',
+              color: activeTab === 'settings' ? 'var(--color-gold-800)' : 'var(--color-slate-800)',
+              fontWeight: 700,
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'settings' ? '0 2px 8px rgba(0,0,0,0.08)' : 'var(--shadow-xs)',
+              transition: 'all 0.18s ease'
+            }}
           >
-            <Download size={15} />
-            <span>גיבוי מלא</span>
+            <Settings size={16} />
+            <span>הגדרות ועריכה</span>
           </button>
 
           <div style={{

@@ -7,6 +7,20 @@ import { INITIAL_BUILDINGS, EXPENSE_CATEGORIES, LETTER_TEMPLATES, BUILDING_COLOR
 const AppContext = createContext(null);
 
 const STORAGE_KEY = 'bait_umnucha_state_v1';
+const SETTINGS_STORAGE_KEY = 'bait_umnucha_settings_v1';
+
+const DEFAULT_SETTINGS = {
+  useHebrewDateDefault: true,
+  hebrewDateFormat: 'both', // 'both' | 'hebrew_only' | 'gregorian_only'
+  noticeHeaderPrefix: 'בס״ד',
+  noticeSignoff: 'בברכת ועד הבית וההנהלה, בית ומנוחה',
+  companyName: 'בית ומנוחה',
+  managerName: 'תומר לוי',
+  companyPhone: '02-555-1234',
+  companyEmail: 'office@bait-umnucha.co.il',
+  defaultMonthlyDues: 300,
+  enableIssuesModule: true
+};
 
 export function AppProvider({ children }) {
   // טעינה ראשונית מ-LocalStorage או מנתוני הבסיס
@@ -26,6 +40,19 @@ export function AppProvider({ children }) {
     return INITIAL_BUILDINGS;
   });
 
+  // הגדרות מערכת ואתר מרוכזות
+  const [systemSettings, setSystemSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (saved) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.error("Failed to load settings from localStorage:", e);
+    }
+    return DEFAULT_SETTINGS;
+  });
+
   const [selectedBuildingId, setSelectedBuildingId] = useState('all');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [userRole, setUserRole] = useState('admin'); // 'admin' | 'rep'
@@ -36,6 +63,15 @@ export function AppProvider({ children }) {
     { id: 'pre-2', name: 'דוח קופות גבייה מיוחד', funds: ['current', 'special'], scope: 'all', viewType: 'separate' },
     { id: 'pre-3', name: 'דוח חצי בניין (כניסה א)', funds: ['current'], scope: 'half', viewType: 'unified' }
   ]);
+
+  // שמירה אוטומטית של הגדרות
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(systemSettings));
+    } catch (e) {
+      console.error("Failed to save settings to localStorage:", e);
+    }
+  }, [systemSettings]);
 
   // שמירה אוטומטית ל-LocalStorage בכל שינוי
   useEffect(() => {
@@ -89,6 +125,86 @@ export function AppProvider({ children }) {
       }
       return b;
     }));
+  };
+
+  // עריכת פרטי בניין כלליים וצבע
+  const updateBuilding = (buildingId, updatedData) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      return {
+        ...b,
+        ...updatedData,
+        currentBalance: updatedData.currentBalance !== undefined ? parseFloat(updatedData.currentBalance) || 0 : b.currentBalance,
+        color: updatedData.color || b.color
+      };
+    }));
+  };
+
+  // מחיקת בניין
+  const deleteBuilding = (buildingId) => {
+    setBuildings(prev => prev.filter(b => b.id !== buildingId));
+    if (selectedBuildingId === buildingId) {
+      setSelectedBuildingId('all');
+    }
+  };
+
+  // הוספת דירה יחידה לבניין
+  const addApartment = (buildingId, aptData) => {
+    const newApt = {
+      id: `apt-${Date.now()}`,
+      aptNum: aptData.aptNum || '1',
+      floor: aptData.floor || '',
+      entrance: aptData.entrance || '',
+      tenantName: aptData.tenantName || 'דייר חדש',
+      occupantType: aptData.occupantType || 'שוכר',
+      phone: aptData.phone || '',
+      email: aptData.email || '',
+      monthlyDues: aptData.monthlyDues !== undefined ? parseFloat(aptData.monthlyDues) : (systemSettings.defaultMonthlyDues || 300),
+      paymentMethod: aptData.paymentMethod || 'חיובית',
+      parking: aptData.parking || '',
+      notes: aptData.notes || '',
+      debtMonths: []
+    };
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      return {
+        ...b,
+        apartments: [...(b.apartments || []), newApt]
+      };
+    }));
+    return newApt.id;
+  };
+
+  // עריכת דירה ודייר
+  const updateApartment = (buildingId, aptId, updatedData) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      const updatedApts = (b.apartments || []).map(apt => {
+        if (apt.id !== aptId) return apt;
+        return {
+          ...apt,
+          ...updatedData,
+          monthlyDues: updatedData.monthlyDues !== undefined ? parseFloat(updatedData.monthlyDues) || 0 : apt.monthlyDues
+        };
+      });
+      return { ...b, apartments: updatedApts };
+    }));
+  };
+
+  // מחיקת דירה
+  const deleteApartment = (buildingId, aptId) => {
+    setBuildings(prev => prev.map(b => {
+      if (b.id !== buildingId) return b;
+      return {
+        ...b,
+        apartments: (b.apartments || []).filter(apt => apt.id !== aptId)
+      };
+    }));
+  };
+
+  // עדכון הגדרות מערכת
+  const updateSystemSettings = (newSettings) => {
+    setSystemSettings(prev => ({ ...prev, ...newSettings }));
   };
 
   // הזנת תקבול ידני חכם (מזומן או העברה ישירה) עם סגירת חודשי חוב
@@ -459,7 +575,14 @@ export function AppProvider({ children }) {
     toggleIssueStatus,
     savePreset,
     exportFullBackup,
-    importFullBackup
+    importFullBackup,
+    systemSettings,
+    updateSystemSettings,
+    updateBuilding,
+    deleteBuilding,
+    addApartment,
+    updateApartment,
+    deleteApartment
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

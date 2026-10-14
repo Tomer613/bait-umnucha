@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { LETTER_TEMPLATES } from '../data/initialData';
+import { formatFormattedDate } from '../utils/hebrewDate';
 import { 
   Send, 
   Printer, 
@@ -12,13 +13,13 @@ import {
   Check, 
   Building2, 
   Users, 
-  Sparkles,
-  Copy,
-  Layers
+  Sparkles, 
+  Copy, 
+  Layers 
 } from 'lucide-react';
 
 export default function LetterWizard() {
-  const { currentBuilding, buildings, selectedBuildingId } = useApp();
+  const { currentBuilding, buildings, selectedBuildingId, systemSettings } = useApp();
 
   const isGlobalMode = selectedBuildingId === 'all' || !currentBuilding;
 
@@ -35,14 +36,21 @@ export default function LetterWizard() {
   // התבנית הפעילה כעת
   const activeTemplate = LETTER_TEMPLATES.find(t => t.id === selectedTemplateId) || filteredTemplates[0] || LETTER_TEMPLATES[0];
 
+  // חישוב תאריך מותאם (עברי / לועזי / משולב)
+  const formattedDateStr = formatFormattedDate(
+    new Date(), 
+    systemSettings?.useHebrewDateDefault ? (systemSettings?.hebrewDateFormat || 'both') : 'gregorian_only'
+  );
+
   // החלפת משתנים דינמיים
   const replaceVariables = (text) => {
     if (!text) return '';
     const bName = isGlobalMode ? 'הבניין שלכם (בניהול בית ומנוחה)' : currentBuilding.name;
-    const dateStr = new Date().toLocaleDateString('he-IL');
+    const signoff = systemSettings?.noticeSignoff || 'בברכת ועד הבית וההנהלה, בית ומנוחה';
     return text
       .replace(/{{שם_בניין}}/g, bName)
-      .replace(/{{תאריך}}/g, dateStr);
+      .replace(/{{תאריך}}/g, formattedDateStr)
+      .replace(/{{חתימה}}/g, signoff);
   };
 
   const [editedTitle, setEditedTitle] = useState(activeTemplate.title);
@@ -301,8 +309,21 @@ export default function LetterWizard() {
         </div>
 
         {/* Right Side: Live Luxury Letterhead Preview */}
-        <div className="card" style={{ padding: 40, background: '#FFFFFF', minHeight: 650, boxShadow: 'var(--shadow-lg)' }}>
+        <div className="card" style={{ padding: 40, background: '#FFFFFF', minHeight: 650, boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
           
+          {/* Header Prefix (e.g. בס״ד) */}
+          {systemSettings?.noticeHeaderPrefix && (
+            <div style={{
+              textAlign: 'left',
+              fontSize: '0.86rem',
+              fontWeight: 800,
+              color: 'var(--color-slate-500)',
+              marginBottom: 8
+            }}>
+              {systemSettings.noticeHeaderPrefix}
+            </div>
+          )}
+
           {/* Letterhead Header */}
           <div style={{
             display: 'flex',
@@ -314,7 +335,7 @@ export default function LetterWizard() {
           }}>
             <div>
               <h2 style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--color-brown-900)', lineHeight: 1.1 }}>
-                בית ומנוחה
+                {systemSettings?.companyName || 'בית ומנוחה'}
               </h2>
               <div style={{ fontSize: '0.9rem', color: isGlobalMode ? 'var(--color-gold-600)' : activeColor.primary, fontWeight: 700 }}>
                 חברה לניהול ועד בית ואחזקת מבנים
@@ -345,8 +366,8 @@ export default function LetterWizard() {
             }}>
               {replaceVariables(editedTitle)}
             </h1>
-            <div style={{ fontSize: '0.85rem', color: 'var(--color-brown-500)', marginTop: 8 }}>
-              תאריך: {new Date().toLocaleDateString('he-IL')}
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-brown-600)', marginTop: 8 }}>
+              תאריך: {formattedDateStr}
             </div>
           </div>
 
@@ -370,13 +391,15 @@ export default function LetterWizard() {
             justifyContent: 'space-between',
             alignItems: 'center',
             fontSize: '0.85rem',
-            color: 'var(--color-brown-600)'
+            color: 'var(--color-brown-600)',
+            flexWrap: 'wrap',
+            gap: 10
           }}>
             <div>
-              <strong>בית ומנוחה</strong> — ניהול ועד בית, שירותי אחזקה, מעליות וגבייה
+              <strong>{systemSettings?.companyName || 'בית ומנוחה'}</strong> — ניהול ועד בית, שירותי אחזקה, מעליות וגבייה
             </div>
             <div>
-              טלפון שירות: 050-0000000 | מייל: office@bait-umnucha.co.il
+              טלפון שירות: {systemSettings?.companyPhone || '02-555-1234'} | מייל: {systemSettings?.companyEmail || 'office@bait-umnucha.co.il'}
             </div>
           </div>
 

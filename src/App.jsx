@@ -12,6 +12,7 @@ import ApartmentRegistry from './components/ApartmentRegistry';
 import SpecialLevies from './components/SpecialLevies';
 import IssuesTracker from './components/IssuesTracker';
 import AddBuildingModal from './components/AddBuildingModal';
+import SettingsView from './components/SettingsView';
 import { Building2, X, Wallet, Users, ChevronLeft, ArrowRight } from 'lucide-react';
 
 function MainApp() {
@@ -34,6 +35,8 @@ function MainApp() {
         return <SpecialLevies />;
       case 'issues':
         return <IssuesTracker />;
+      case 'settings':
+        return <SettingsView onOpenAddBuilding={() => setIsAddBuildingOpen(true)} />;
       default:
         return <MasterDashboard onOpenAddBuilding={() => setIsAddBuildingOpen(true)} />;
     }
