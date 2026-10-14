@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { PlusCircle, CheckCircle2, Clock, Send, Search, MessageSquare, RotateCcw } from 'lucide-react';
 import { PageHeader, Segmented, Modal, Field, EmptyState, BuildingName } from './ui';
-import { withBuilding } from '../utils/format';
+import { withBuilding, requestBuildingPick } from '../utils/format';
 
 const MANAGER_AUTHOR = 'מנהל החברה';
 const issueKey = (iss) => `${iss.buildingId}:${iss.id}`;
@@ -21,7 +21,6 @@ export default function IssuesTracker() {
   const [replyText, setReplyText] = useState('');
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newIssueBuildingId, setNewIssueBuildingId] = useState(buildings[0]?.id || '');
   const [newTitle, setNewTitle] = useState('');
   const [newAuthor, setNewAuthor] = useState('נציג ועד הבית');
   const [newBody, setNewBody] = useState('');
@@ -43,7 +42,8 @@ export default function IssuesTracker() {
   const handleCreateIssue = (e) => {
     e.preventDefault();
     if (!newTitle || !newBody) return;
-    addIssue(currentBuilding ? currentBuilding.id : newIssueBuildingId, newTitle, newAuthor, newBody);
+    if (!currentBuilding) return;
+    addIssue(currentBuilding.id, newTitle, newAuthor, newBody);
     setShowAddModal(false);
     setNewTitle('');
     setNewBody('');
@@ -64,11 +64,11 @@ export default function IssuesTracker() {
     <div className="page">
       <PageHeader
         title="פניות ותקלות"
-        subtitle={isGlobalMode ? `כלל הבניינים · ${openCount} פתוחות` : `${currentBuilding.name} · ${openCount} פתוחות`}
+        subtitle={`${openCount} פתוחות · ${closedCount} טופלו`}
         actions={
           <>
             {!isGlobalMode && (
-              <label className="row" style={{ gap: 8, fontSize: '0.86rem', fontWeight: 500, color: 'var(--ink-600)', cursor: 'pointer' }}>
+              <label className="row" style={{ gap: 8, fontSize: '0.89rem', fontWeight: 500, color: 'var(--ink-600)', cursor: 'pointer' }}>
                 <span>נציגי הבניין יכולים לפתוח פניות</span>
                 <span className="switch">
                   <input
@@ -80,7 +80,10 @@ export default function IssuesTracker() {
                 </span>
               </label>
             )}
-            <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+            <button
+              onClick={() => currentBuilding ? setShowAddModal(true) : requestBuildingPick('לאיזה בניין לפתוח את הפנייה? בחרו בניין')}
+              className="btn btn-primary"
+            >
               <PlusCircle size={17} /> פנייה חדשה
             </button>
           </>
@@ -129,8 +132,8 @@ export default function IssuesTracker() {
                     <span className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
                       {isGlobalMode
                         ? <BuildingName name={iss.buildingName} color={iss.buildingColor} />
-                        : <span className="muted" style={{ fontSize: '0.78rem' }}>{iss.author}</span>}
-                      <span className="muted" style={{ fontSize: '0.75rem' }}>{iss.createdAt}</span>
+                        : <span className="muted" style={{ fontSize: '0.85rem' }}>{iss.author}</span>}
+                      <span className="muted" style={{ fontSize: '0.82rem' }}>{iss.createdAt}</span>
                     </span>
                     <span className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
                       {iss.status === 'open'
@@ -138,7 +141,7 @@ export default function IssuesTracker() {
                         : <CheckCircle2 size={15} color="var(--success)" style={{ flexShrink: 0 }} />}
                       <span className="issue-title">{iss.title}</span>
                     </span>
-                    <span className="muted" style={{ fontSize: '0.76rem' }}>
+                    <span className="muted" style={{ fontSize: '0.83rem' }}>
                       {isGlobalMode && `${iss.author} · `}{iss.comments?.length || 0} תגובות
                     </span>
                   </button>
@@ -162,7 +165,7 @@ export default function IssuesTracker() {
                   </span>
                 </div>
                 <h2 style={{ fontSize: '1.35rem' }}>{activeIssue.title}</h2>
-                <span className="muted" style={{ fontSize: '0.82rem' }}>נפתחה ע״י {activeIssue.author} · {activeIssue.createdAt}</span>
+                <span className="muted" style={{ fontSize: '0.86rem' }}>נפתחה ע״י {activeIssue.author} · {activeIssue.createdAt}</span>
               </div>
               <button
                 type="button"
@@ -182,12 +185,12 @@ export default function IssuesTracker() {
                   <div key={comm.id || idx} className={`comment${isManager ? ' comment--manager' : ''}`}>
                     <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
                       <span className="row" style={{ gap: 8 }}>
-                        <strong style={{ fontSize: '0.9rem' }}>{comm.author}</strong>
+                        <strong style={{ fontSize: '0.93rem' }}>{comm.author}</strong>
                         {isManager && <span className="badge badge-gold">הנהלה</span>}
                       </span>
-                      <span className="muted" style={{ fontSize: '0.75rem' }}>{comm.time || comm.createdAt}</span>
+                      <span className="muted" style={{ fontSize: '0.82rem' }}>{comm.time || comm.createdAt}</span>
                     </div>
-                    <p style={{ fontSize: '0.92rem', whiteSpace: 'pre-wrap', color: 'var(--ink-800)' }}>{comm.text || comm.content}</p>
+                    <p style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap', color: 'var(--ink-800)' }}>{comm.text || comm.content}</p>
                   </div>
                 );
               })}
@@ -217,15 +220,8 @@ export default function IssuesTracker() {
         )}
       </div>
 
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="פנייה חדשה" subtitle={currentBuilding?.name}>
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="פנייה חדשה" subtitle={currentBuilding ? <BuildingName name={currentBuilding.name} color={currentBuilding.color} /> : null}>
         <form onSubmit={handleCreateIssue} className="form-stack">
-          {isGlobalMode && (
-            <Field label="בניין">
-              <select value={newIssueBuildingId} onChange={(e) => setNewIssueBuildingId(e.target.value)} className="select">
-                {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </Field>
-          )}
           <Field label="נושא">
             <input type="text" required value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="input" placeholder="למשל: שער החניון תקוע" />
           </Field>

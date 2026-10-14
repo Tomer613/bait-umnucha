@@ -77,3 +77,8 @@ export function withBuilding(building, items) {
     buildingColor: building.color
   }));
 }
+
+// פתיחת בורר הבניין העליון ("עובדים על") עם הודעה — לפעולות שדורשות בניין מסוים
+export function requestBuildingPick(message = 'בחרו בניין כדי להמשיך') {
+  window.dispatchEvent(new CustomEvent('bpicker:open', { detail: { message } }));
+}

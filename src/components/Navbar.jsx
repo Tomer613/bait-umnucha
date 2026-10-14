@@ -1,11 +1,12 @@
 // ==========================================================================
-// בית ומנוחה - סרגל עליון: מותג, בורר בניין, הגדרות וניווט ראשי (5 אזורים)
+// בית ומנוחה - סרגל עליון: שורת מותג, שורת הניווט הראשי (5 אזורים),
+// ובמסך צר — פס הבניין הנבחר שפותח את תפריט הבניינים
 // ==========================================================================
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { LayoutDashboard, Wallet, Users, MessageSquare, FileText, Settings, ArrowRight } from 'lucide-react';
-import BuildingSelectDropdown from './BuildingSelectDropdown';
-import { openIssuesCount, sumBy } from '../utils/format';
+import { LayoutDashboard, Wallet, Users, MessageSquare, FileText, Settings, ChevronDown, ArrowRight } from 'lucide-react';
+import { BuildingAvatar, AllBuildingsAvatar } from './ui';
+import { openIssuesCount, sumBy, requestBuildingPick } from '../utils/format';
 
 const NAV_TABS = [
   { id: 'dashboard', label: 'סקירה', icon: LayoutDashboard },
@@ -18,7 +19,6 @@ const NAV_TABS = [
 export default function Navbar() {
   const {
     buildings,
-    selectedBuildingId,
     setSelectedBuildingId,
     currentBuilding,
     activeTab,
@@ -31,68 +31,79 @@ export default function Navbar() {
   const openIssues = currentBuilding ? openIssuesCount(currentBuilding) : sumBy(buildings, openIssuesCount);
 
   return (
-    <header className="topbar no-print">
-      <div className="topbar-inner">
-        <button
-          type="button"
-          className="brand"
-          onClick={() => { setSelectedBuildingId('all'); setActiveTab('dashboard'); }}
-          title="חזרה לסקירת כלל הבניינים"
-        >
-          <img src="/logo.png" alt="" className="brand-logo" onError={(e) => { e.target.style.display = 'none'; }} />
-          <span>
-            <span className="brand-name">{systemSettings?.companyName || 'בית ומנוחה'}</span>
-            <span className="brand-tagline">ניהול ועד בית ואחזקת מבנים</span>
-          </span>
-        </button>
+    <div className="app-header no-print">
+      <header className="topbar">
+        {/* שורה 1: מותג, משתמש והגדרות */}
+        <div className="topbar-inner">
+          <button
+            type="button"
+            className="brand"
+            onClick={() => { setSelectedBuildingId('all'); setActiveTab('dashboard'); }}
+            title="חזרה לסקירת כלל הבניינים"
+          >
+            <img src="/logo.png" alt="" className="brand-logo" onError={(e) => { e.target.style.display = 'none'; }} />
+            <span>
+              <span className="brand-name">{systemSettings?.companyName || 'בית ומנוחה'}</span>
+              <span className="brand-tagline">ניהול ועד בית ואחזקת מבנים</span>
+            </span>
+          </button>
 
+          <div className="topbar-end">
+            <div className="user-chip" title={managerName}>
+              <span className="user-avatar">{managerName.trim().charAt(0)}</span>
+              <span>{managerName}</span>
+            </div>
+            <button
+              type="button"
+              className={`icon-btn-dark${isSettings ? ' is-active' : ''}`}
+              onClick={() => setActiveTab(isSettings ? 'dashboard' : 'settings')}
+              title={isSettings ? 'חזרה למערכת' : 'הגדרות מערכת ובניינים'}
+            >
+              {isSettings ? <ArrowRight size={16} /> : <Settings size={16} />}
+              <span>{isSettings ? 'חזרה למערכת' : 'הגדרות'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* שורה 2: ניווט ראשי — לא מוצג במסך ההגדרות */}
         {!isSettings && (
-          <BuildingSelectDropdown
-            buildings={buildings}
-            selectedBuildingId={selectedBuildingId}
-            onSelectBuilding={setSelectedBuildingId}
-          />
+        <nav className="mainnav" aria-label="ניווט ראשי">
+          <div className="mainnav-inner">
+            {NAV_TABS.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`mainnav-tab${activeTab === tab.id ? ' is-active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <tab.icon size={18} />
+                <span>{tab.label}</span>
+                {tab.id === 'issues' && openIssues > 0 && <span className="count">{openIssues}</span>}
+              </button>
+            ))}
+          </div>
+        </nav>
         )}
 
-        <div className="topbar-spacer" />
-
-        <div className="user-chip">
-          <span className="user-avatar">{managerName.trim().charAt(0)}</span>
-          <span>{managerName}</span>
-        </div>
-
+        {/* מסך צר: פס הבניין הנבחר מתחת לניווט — פותח את תפריט הבניינים */}
+        {!isSettings && (
         <button
           type="button"
-          className={`icon-btn-dark${isSettings ? ' is-active' : ''}`}
-          onClick={() => setActiveTab(isSettings ? 'dashboard' : 'settings')}
-          title={isSettings ? 'חזרה למערכת' : 'הגדרות מערכת ובניינים'}
+          className="building-bar"
+          onClick={() => requestBuildingPick('')}
+          aria-label="החלפת בניין"
         >
-          {isSettings ? <ArrowRight size={16} /> : <Settings size={16} />}
-          <span>{isSettings ? 'חזרה למערכת' : 'הגדרות'}</span>
+          {currentBuilding ? <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} size="sm" /> : <AllBuildingsAvatar size="sm" />}
+          <span className="building-bar-name">{currentBuilding ? currentBuilding.name : 'כלל הבניינים'}</span>
+          <span className="building-bar-action">החלפת בניין <ChevronDown size={16} /></span>
         </button>
-      </div>
-
-      <nav className="mainnav" aria-label="ניווט ראשי">
-        <div className="mainnav-inner">
-          {NAV_TABS.map(tab => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`mainnav-tab${activeTab === tab.id ? ' is-active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <tab.icon size={17} />
-              <span>{tab.label}</span>
-              {tab.id === 'issues' && openIssues > 0 && <span className="count">{openIssues}</span>}
-            </button>
-          ))}
-        </div>
-      </nav>
+        )}
+      </header>
 
       <div
         className="building-strip"
         style={{ background: currentBuilding && !isSettings ? currentBuilding.color?.primary : 'var(--gold-500)' }}
       />
-    </header>
+    </div>
   );
 }

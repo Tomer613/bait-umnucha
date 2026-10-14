@@ -7,7 +7,10 @@ import { useApp } from '../context/AppContext';
 import { BUILDING_COLOR_PALETTE } from '../data/initialData';
 import { formatFormattedDate } from '../utils/hebrewDate';
 import ConfirmModal from './ConfirmModal';
-import { PageHeader, SubTabs, FlashMessage } from './ui';
+import { PageHeader, SubTabs, FlashMessage, Field, BuildingAvatar } from './ui';
+import { buildingDebt, formatILS } from '../utils/format';
+import DisplaySettings from './DisplaySettings';
+import ExpenseCategoriesSettings from './ExpenseCategoriesSettings';
 import {
   Building2,
   Sliders,
@@ -15,7 +18,6 @@ import {
   PlusCircle,
   Edit3,
   Trash2,
-  Check,
   Download,
   Upload,
   Save,
@@ -23,7 +25,10 @@ import {
   Calendar,
   Phone,
   Mail,
-  DollarSign
+  DollarSign,
+  Eye,
+  Landmark,
+  Tags
 } from 'lucide-react';
 
 export default function SettingsView({ onOpenAddBuilding }) {
@@ -38,7 +43,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
   } = useApp();
 
   // לשונית פנימית פעילה בתוך מרכז ההגדרות
-  const [innerTab, setInnerTab] = useState('buildings'); // 'buildings' | 'preferences' | 'backup'
+  const [innerTab, setInnerTab] = useState('buildings'); // 'buildings' | 'preferences' | 'display' | 'backup'
 
   // הודעת סטטוס והצלחה
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
@@ -93,10 +98,12 @@ export default function SettingsView({ onOpenAddBuilding }) {
       title: 'מחיקת בניין מהמערכת',
       question: 'אתה בטוח שברצונך למחוק את הבניין?',
       description: (
-        <div>
-          האם אתה בטוח שברצונך למחוק לצמיתות את הבניין{' '}
-          <strong style={{ color: '#0F172A', fontSize: '1.05rem' }}>"{bld.name}"</strong>
-          {bld.address ? ` (${bld.address})` : ''}?
+        <div className="title-with-plaque" style={{ gap: 12, fontSize: '1rem' }}>
+          <BuildingAvatar name={bld.name} color={bld.color} />
+          <span>
+            <strong style={{ color: 'var(--ink-900)' }}>{bld.name}</strong>
+            {bld.address && <span className="muted" style={{ display: 'block', fontSize: '0.88rem' }}>{bld.address}</span>}
+          </span>
         </div>
       ),
       subDescription: `כל הנתונים, ${aptCount} הדירות והדיירים, ההוצאות, קופות הגבייה וההיסטוריה של הבניין יימחקו לצמיתות ולא ניתן יהיה לשחזרם!`,
@@ -299,7 +306,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
       <PageHeader
         title="הגדרות"
-        subtitle="בניינים, פרטי החברה ומכתבים, וגיבוי הנתונים"
+        subtitle="שינויים כאן משפיעים על כל המערכת"
       />
 
       <FlashMessage flash={saveSuccessMsg ? { text: saveSuccessMsg, type: 'success' } : null} />
@@ -310,6 +317,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
         tabs={[
           { id: 'buildings', label: `בניינים (${buildings.length})`, icon: Building2 },
           { id: 'preferences', label: 'פרטי החברה ומכתבים', icon: Sliders },
+          { id: 'categories', label: 'קטגוריות הוצאה', icon: Tags },
+          { id: 'display', label: 'תצוגה ונוחות קריאה', icon: Eye },
           { id: 'backup', label: 'גיבוי ושחזור', icon: ShieldCheck }
         ]}
       />
@@ -318,195 +327,77 @@ export default function SettingsView({ onOpenAddBuilding }) {
           לשונית 1: ניהול ועריכת בניינים
           ==================================================================== */}
       {innerTab === 'buildings' && (
-        <div>
+        <div className="stack" style={{ gap: 18 }}>
           {/* שורת פעולה: הוספת בניין חדש */}
-          <div style={{
-            background: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1.5px solid var(--color-border-card)',
-            padding: '18px 24px',
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 14
-          }}>
+          <div className="card row" style={{ justifyContent: 'space-between' }}>
             <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
-                מאגר הבניינים המנוהלים
-              </h2>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--color-slate-600)' }}>
-                הוספת בניין חדש, שינוי כתובות, עדכון פרטי חשבון בנק והתאמת חותמת צבע אישית לכל בניין
-              </p>
+              <h2 className="section-title">הבניינים המנוהלים</h2>
+              <p className="section-sub">פרטי כל בניין, חשבון הבנק, קוד חיובית וצבע השלט שמזהה אותו בכל האתר</p>
             </div>
-
-            <button
-              onClick={onOpenAddBuilding}
-              className="btn btn-primary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 22px',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: 700,
-                fontSize: '0.92rem'
-              }}
-            >
-              <PlusCircle size={18} />
-              <span>הוספת בניין חדש</span>
+            <button onClick={onOpenAddBuilding} className="btn btn-primary">
+              <PlusCircle size={18} /> הוספת בניין חדש
             </button>
           </div>
 
           {/* גריד כרטיסי בניינים */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-            gap: 18
-          }}>
+          <div className="bcard-grid">
             {buildings.map((bld) => {
               const isEditing = editingBuildingId === bld.id;
               const bldColor = bld.color || BUILDING_COLOR_PALETTE[0];
 
               if (isEditing) {
+                const previewColor = editBuildingForm.color || bldColor;
                 return (
-                  <div key={bld.id} style={{
-                    background: '#FFFFFF',
-                    borderRadius: 'var(--radius-lg)',
-                    border: `2px solid ${editBuildingForm.color?.primary || bldColor.primary}`,
-                    padding: 22,
-                    boxShadow: 'var(--shadow-lg)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                      <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--color-slate-900)' }}>
-                        עריכת בניין: {bld.name}
-                      </span>
-                      <button
-                        onClick={() => setEditingBuildingId(null)}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-slate-400)' }}
-                      >
+                  <div key={bld.id} className="bcard is-editing" style={{ '--c': previewColor.primary }}>
+                    <div className="bcard-head">
+                      <BuildingAvatar name={editBuildingForm.name || bld.name} color={previewColor} size="lg" />
+                      <div className="bcard-title">
+                        <h3>{editBuildingForm.name || 'ללא שם'}</h3>
+                        <p>עריכת פרטי הבניין</p>
+                      </div>
+                      <button type="button" className="modal-close" onClick={() => setEditingBuildingId(null)} aria-label="ביטול העריכה">
                         <X size={18} />
                       </button>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4 }}>
-                          שם הבניין:
-                        </label>
-                        <input
-                          type="text"
-                          value={editBuildingForm.name}
-                          onChange={(e) => setEditBuildingForm({ ...editBuildingForm, name: e.target.value })}
-                          className="input"
-                          style={{ width: '100%' }}
-                        />
+                    <div className="bcard-body form-stack" style={{ gap: 14 }}>
+                      <Field label="שם הבניין">
+                        <input type="text" value={editBuildingForm.name} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, name: e.target.value })} className="input" />
+                      </Field>
+                      <Field label="כתובת מלאה ועיר">
+                        <input type="text" value={editBuildingForm.address} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, address: e.target.value })} className="input" />
+                      </Field>
+                      <div className="field-row">
+                        <Field label="חשבון בנק">
+                          <input type="text" value={editBuildingForm.bankAccount} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, bankAccount: e.target.value })} className="input" />
+                        </Field>
+                        <Field label="קוד בניין בחיובית">
+                          <input type="text" value={editBuildingForm.hiyuvitCode} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, hiyuvitCode: e.target.value })} className="input" placeholder="643" />
+                        </Field>
                       </div>
 
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4 }}>
-                          כתובת מלאה ועיר:
-                        </label>
-                        <input
-                          type="text"
-                          value={editBuildingForm.address}
-                          onChange={(e) => setEditBuildingForm({ ...editBuildingForm, address: e.target.value })}
-                          className="input"
-                          style={{ width: '100%' }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4 }}>
-                            חשבון בנק:
-                          </label>
-                          <input
-                            type="text"
-                            value={editBuildingForm.bankAccount}
-                            onChange={(e) => setEditBuildingForm({ ...editBuildingForm, bankAccount: e.target.value })}
-                            className="input"
-                            style={{ width: '100%' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4 }}>
-                            קוד בניין בחיובית:
-                          </label>
-                          <input
-                            type="text"
-                            value={editBuildingForm.hiyuvitCode}
-                            onChange={(e) => setEditBuildingForm({ ...editBuildingForm, hiyuvitCode: e.target.value })}
-                            className="input"
-                            style={{ width: '100%' }}
-                            placeholder="למשל: 643"
-                          />
+                      <div className="field">
+                        <span className="field-label">צבע השלט · {previewColor.name}</span>
+                        <div className="swatch-grid">
+                          {BUILDING_COLOR_PALETTE.map((pal) => (
+                            <button
+                              key={pal.id}
+                              type="button"
+                              title={pal.name}
+                              className={`swatch${previewColor.id === pal.id ? ' is-selected' : ''}`}
+                              onClick={() => setEditBuildingForm({ ...editBuildingForm, color: pal })}
+                            >
+                              <BuildingAvatar name={editBuildingForm.name || bld.name} color={pal} size="sm" />
+                            </button>
+                          ))}
                         </div>
                       </div>
 
-
-                      {/* בורר צבע מותאם לבניין */}
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: 6 }}>
-                          חותמת צבע המותג של הבניין:
-                        </label>
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(8, 1fr)',
-                          gap: 6,
-                          background: 'var(--color-slate-50)',
-                          padding: 10,
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--color-border-card)'
-                        }}>
-                          {BUILDING_COLOR_PALETTE.map((pal) => {
-                            const isSelected = (editBuildingForm.color?.id || bldColor.id) === pal.id;
-                            return (
-                              <button
-                                key={pal.id}
-                                type="button"
-                                title={pal.name}
-                                onClick={() => setEditBuildingForm({ ...editBuildingForm, color: pal })}
-                                style={{
-                                  height: 28,
-                                  borderRadius: 6,
-                                  background: pal.primary,
-                                  border: isSelected ? '2px solid #0F172A' : '1px solid rgba(0,0,0,0.15)',
-                                  boxShadow: isSelected ? '0 0 0 2px #FFFFFF, 0 2px 6px rgba(0,0,0,0.2)' : 'none',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: '#FFFFFF'
-                                }}
-                              >
-                                {isSelected && <Check size={14} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--color-slate-500)', marginTop: 4, display: 'block' }}>
-                          נבחר: <strong>{editBuildingForm.color?.name || bldColor.name}</strong>
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                        <button
-                          onClick={() => handleSaveBuilding(bld.id)}
-                          className="btn btn-primary"
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                        >
-                          <Save size={16} />
-                          <span>שמור שינויים</span>
+                      <div className="modal-actions">
+                        <button onClick={() => handleSaveBuilding(bld.id)} className="btn btn-primary">
+                          <Save size={16} /> שמירת השינויים
                         </button>
-                        <button
-                          onClick={() => setEditingBuildingId(null)}
-                          className="btn btn-secondary"
-                          style={{ padding: '8px 16px' }}
-                        >
-                          ביטול
-                        </button>
+                        <button onClick={() => setEditingBuildingId(null)} className="btn btn-secondary">ביטול</button>
                       </div>
                     </div>
                   </div>
@@ -514,95 +405,43 @@ export default function SettingsView({ onOpenAddBuilding }) {
               }
 
               // כרטיס תצוגה
+              const aptCount = (bld.apartments || []).length;
+              const debt = buildingDebt(bld);
               return (
-                <div key={bld.id} style={{
-                  background: '#FFFFFF',
-                  borderRadius: 'var(--radius-lg)',
-                  border: `1.5px solid ${bldColor.border}`,
-                  padding: 20,
-                  boxShadow: 'var(--shadow-xs)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.2s ease',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}>
-                  {/* פס צבע עליון */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    left: 0,
-                    height: 5,
-                    background: bldColor.primary
-                  }} />
-
-                  <div>
-                    <div style={{ marginBottom: 8, marginTop: 4 }}>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
-                        {bld.name}
-                      </h3>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.84rem', color: 'var(--color-slate-600)' }}>
-                        {bld.address || 'לא הוגדרה כתובת'}
-                      </p>
-                    </div>
-
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: 8,
-                      margin: '14px 0',
-                      background: 'var(--color-slate-50)',
-                      padding: 12,
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.83rem'
-                    }}>
-                      <div>
-                        <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>דירות בבניין:</span>
-                        <strong style={{ color: 'var(--color-slate-800)' }}>{(bld.apartments || []).length} דירות</strong>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>קוד בניין בחיובית:</span>
-                        <span style={{ color: 'var(--color-slate-700)' }}>{bld.hiyuvitCode || 'ללא'}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--color-slate-500)', display: 'block' }}>חשבון בנק:</span>
-                        <span style={{ color: 'var(--color-slate-700)' }}>{bld.bankAccount ? bld.bankAccount.slice(0, 16) + '...' : 'לא הוזן'}</span>
-                      </div>
+                <div key={bld.id} className="bcard" style={{ '--c': bldColor.primary }}>
+                  <div className="bcard-head">
+                    <BuildingAvatar name={bld.name} color={bldColor} size="lg" />
+                    <div className="bcard-title">
+                      <h3>{bld.name}</h3>
+                      <p>{bld.address || 'לא הוגדרה כתובת'}</p>
                     </div>
                   </div>
 
-                  {/* כפתורי פעולה */}
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button
-                      onClick={() => startEditBuilding(bld)}
-                      className="btn btn-secondary btn-sm"
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6,
-                        fontWeight: 700
-                      }}
-                    >
-                      <Edit3 size={15} />
-                      <span>ערוך פרטים וצבע</span>
-                    </button>
+                  <div className="bcard-body">
+                    <div className="row" style={{ gap: 6 }}>
+                      {bld.statusMonthUpdated
+                        ? <span className="badge badge-success badge-dot">קליטה מעודכנת</span>
+                        : <span className="badge badge-warning badge-dot">ממתין לקליטה</span>}
+                      {debt > 0 && <span className="badge badge-danger">חוב {formatILS(debt)}</span>}
+                    </div>
 
-                    <button
-                      onClick={() => handleDeleteBuilding(bld)}
-                      className="btn btn-sm"
-                      title="מחיקת בניין מהמערכת"
-                      style={{
-                        background: 'var(--color-danger-bg)',
-                        color: 'var(--color-danger)',
-                        border: '1px solid var(--color-danger-border)',
-                        padding: '6px 12px',
-                        cursor: 'pointer'
-                      }}
-                    >
+                    <div className="bcard-stats">
+                      <div><span>דירות</span><strong>{aptCount}</strong></div>
+                      <div><span>יתרת קופה</span><strong>{formatILS(bld.currentBalance)}</strong></div>
+                      <div><span>קוד חיובית</span><strong>{bld.hiyuvitCode || '—'}</strong></div>
+                    </div>
+
+                    <div className="bcard-bank">
+                      <Landmark size={16} />
+                      <span>{bld.bankAccount || 'חשבון בנק לא הוזן'}</span>
+                    </div>
+                  </div>
+
+                  <div className="bcard-actions">
+                    <button onClick={() => startEditBuilding(bld)} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
+                      <Edit3 size={15} /> עריכת פרטים וצבע
+                    </button>
+                    <button onClick={() => handleDeleteBuilding(bld)} className="btn btn-danger btn-sm btn-icon" title="מחיקת הבניין מהמערכת">
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -645,7 +484,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
                   הגדרות תאריך עברי במודעות ובמכתבים
                 </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--color-slate-600)' }}>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.88rem', color: 'var(--color-slate-600)' }}>
                   שילוב תאריך עברי אותנטי באופן אוטומטי בהנפקת מודעות לתלייה ובאשף המכתבים
                 </p>
               </div>
@@ -654,7 +493,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* אופן תצוגת התאריך - בחירה ישירה ובלעדית ללא צ'קבוקס כפול */}
               <div>
-                <span style={{ display: 'block', fontSize: '0.92rem', fontWeight: 800, marginBottom: 10, color: 'var(--color-slate-900)' }}>
+                <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 800, marginBottom: 10, color: 'var(--color-slate-900)' }}>
                   בחר את אופן הצגת התאריך במודעות ובמכתבים:
                 </span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
@@ -684,9 +523,9 @@ export default function SettingsView({ onOpenAddBuilding }) {
                           onChange={() => setPrefForm({ ...prefForm, hebrewDateFormat: fmt.id })}
                           style={{ accentColor: 'var(--color-gold-600)' }}
                         />
-                        <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{fmt.label}</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.91rem' }}>{fmt.label}</span>
                       </div>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--color-slate-500)', marginTop: 4, marginRight: 22 }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-slate-500)', marginTop: 4, marginRight: 22 }}>
                         {fmt.desc}
                       </span>
                     </label>
@@ -704,10 +543,10 @@ export default function SettingsView({ onOpenAddBuilding }) {
                 alignItems: 'center',
                 justifyContent: 'space-between'
               }}>
-                <span style={{ fontSize: '0.83rem', color: 'var(--color-slate-600)' }}>
+                <span style={{ fontSize: '0.86rem', color: 'var(--color-slate-600)' }}>
                   תצוגה מקדימה חיה של התאריך כפי שיופיע במודעות:
                 </span>
-                <span style={{ fontWeight: 800, color: 'var(--color-slate-900)', fontSize: '0.92rem' }}>
+                <span style={{ fontWeight: 800, color: 'var(--color-slate-900)', fontSize: '0.95rem' }}>
                   {formatFormattedDate(new Date(), prefForm.hebrewDateFormat)}
                 </span>
               </div>
@@ -728,7 +567,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, marginBottom: 4 }}>
                   פתיח קבוע בראש כל מודעה ומכתב:
                 </label>
                 <input
@@ -743,10 +582,10 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: 700 }}>
+                  <label style={{ fontSize: '0.86rem', fontWeight: 700 }}>
                     נוסח חתימה קבוע בתחתית מודעות ומכתבים:
                   </label>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--color-slate-500)' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--color-slate-500)' }}>
                     (ניתן ללחוץ Enter לירידת שורה)
                   </span>
                 </div>
@@ -788,14 +627,14 @@ export default function SettingsView({ onOpenAddBuilding }) {
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
                   דמי ועד ברירת מחדל למבנים
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--color-slate-500)', margin: '2px 0 0 0' }}>
+                <p style={{ fontSize: '0.86rem', color: 'var(--color-slate-500)', margin: '2px 0 0 0' }}>
                   סכום חודשי שיוגדר אוטומטית לדירות בעת הקמת בניין חדש במערכת (ניתן להתאמה אישית לכל דירה)
                 </p>
               </div>
             </div>
 
             <div style={{ maxWidth: 280, marginTop: 14 }}>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-slate-700)' }}>
+              <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-slate-700)' }}>
                 סכום דמי ועד ברירת מחדל (₪):
               </label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -829,7 +668,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, marginBottom: 4 }}>
                   שם החברה / הוועד:
                 </label>
                 <input
@@ -841,7 +680,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, marginBottom: 4 }}>
                   שם מנהל המערכת:
                 </label>
                 <input
@@ -866,7 +705,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Phone size={18} color="var(--color-gold-600)" />
-                  <span style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
+                  <span style={{ fontSize: '0.97rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
                     מספרי טלפון ליצירת קשר ({prefForm.phoneList.length})
                   </span>
                 </div>
@@ -881,7 +720,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                     padding: '6px 14px',
                     borderRadius: 'var(--radius-full)',
                     fontWeight: 700,
-                    fontSize: '0.82rem',
+                    fontSize: '0.86rem',
                     border: '1.5px solid var(--color-gold-500)',
                     background: '#FFFFFF',
                     color: 'var(--color-gold-800)',
@@ -895,7 +734,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
               </div>
 
               {prefForm.phoneList.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-slate-500)', fontSize: '0.85rem' }}>
+                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-slate-500)', fontSize: '0.88rem' }}>
                   לא הוגדרו מספרי טלפון. לחץ על ״הוסף מספר טלפון״ כדי להוסיף.
                 </div>
               ) : (
@@ -916,7 +755,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                       }}
                     >
                       <div style={{ flex: '1 1 200px' }}>
-                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                        <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
                           מספר טלפון #{index + 1}:
                         </label>
                         <input
@@ -931,7 +770,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                       </div>
 
                       <div style={{ flex: '1.2 1 240px' }}>
-                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                        <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
                           ייעוד המספר:
                         </label>
                         <input
@@ -949,7 +788,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                               type="button"
                               onClick={() => handleUpdatePhone(item.id, 'label', chip)}
                               style={{
-                                fontSize: '0.72rem',
+                                fontSize: '0.79rem',
                                 padding: '2px 8px',
                                 borderRadius: 'var(--radius-full)',
                                 border: item.label === chip ? '1px solid var(--color-gold-600)' : '1px solid var(--color-beige-border)',
@@ -1005,7 +844,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Mail size={18} color="var(--color-gold-600)" />
-                  <span style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
+                  <span style={{ fontSize: '0.97rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
                     כתובות דוא״ל ליצירת קשר ({prefForm.emailList.length})
                   </span>
                 </div>
@@ -1020,7 +859,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                     padding: '6px 14px',
                     borderRadius: 'var(--radius-full)',
                     fontWeight: 700,
-                    fontSize: '0.82rem',
+                    fontSize: '0.86rem',
                     border: '1.5px solid var(--color-gold-500)',
                     background: '#FFFFFF',
                     color: 'var(--color-gold-800)',
@@ -1034,7 +873,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
               </div>
 
               {prefForm.emailList.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-slate-500)', fontSize: '0.85rem' }}>
+                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-slate-500)', fontSize: '0.88rem' }}>
                   לא הוגדרו כתובות דוא״ל. לחץ על ״הוסף כתובת דוא״ל״ כדי להוסיף.
                 </div>
               ) : (
@@ -1055,7 +894,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                       }}
                     >
                       <div style={{ flex: '1 1 240px' }}>
-                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                        <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
                           כתובת דוא״ל #{index + 1}:
                         </label>
                         <input
@@ -1070,7 +909,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                       </div>
 
                       <div style={{ flex: '1.2 1 240px' }}>
-                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
+                        <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 700, color: 'var(--color-slate-600)', marginBottom: 3 }}>
                           ייעוד הכתובת:
                         </label>
                         <input
@@ -1088,7 +927,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                               type="button"
                               onClick={() => handleUpdateEmail(item.id, 'label', chip)}
                               style={{
-                                fontSize: '0.72rem',
+                                fontSize: '0.79rem',
                                 padding: '2px 8px',
                                 borderRadius: 'var(--radius-full)',
                                 border: item.label === chip ? '1px solid var(--color-gold-600)' : '1px solid var(--color-beige-border)',
@@ -1135,7 +974,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
             <div style={{ marginTop: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700 }}>
+                <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700 }}>
                   שורת יצירת קשר משולבת לדוחות ומכתבים:
                 </label>
                 <button
@@ -1151,7 +990,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                     setPrefForm(prev => ({ ...prev, companyPhone: combined }));
                   }}
                   className="btn btn-secondary btn-sm"
-                  style={{ fontSize: '0.75rem', padding: '3px 10px', height: 26 }}
+                  style={{ fontSize: '0.82rem', padding: '3px 10px', height: 26 }}
                 >
                   רענן שורה אוטומטית לפי הרשימות
                 </button>
@@ -1164,7 +1003,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                 className="input"
                 style={{ width: '100%' }}
               />
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)', marginTop: 3, display: 'block' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--color-slate-500)', marginTop: 3, display: 'block' }}>
                 ניתן לערוך ידנית, להשמיט שדות, או להשאיר ריק כדי שיופק אוטומטית ממספרי הטלפון והוואטסאפ.
               </span>
             </div>
@@ -1189,6 +1028,10 @@ export default function SettingsView({ onOpenAddBuilding }) {
         </form>
       )}
 
+      {innerTab === 'categories' && <ExpenseCategoriesSettings />}
+
+      {innerTab === 'display' && <DisplaySettings />}
+
       {/* ====================================================================
           לשונית 4: גיבוי, שחזור ואבטחת נתונים
           ==================================================================== */}
@@ -1205,7 +1048,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
             <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', marginBottom: 8 }}>
               ייצוא גיבוי נתונים מלא למחשב
             </h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--color-slate-600)', marginBottom: 16 }}>
+            <p style={{ fontSize: '0.91rem', color: 'var(--color-slate-600)', marginBottom: 16 }}>
               הורדת קובץ גיבוי מקיף המכיל את כל {buildings.length} הבניינים, כל הדירות, ההוצאות, התנועות וההגדרות.
             </p>
             <button
@@ -1228,7 +1071,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
             <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', marginBottom: 8 }}>
               שחזור נתונים מקובץ גיבוי
             </h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--color-slate-600)', marginBottom: 16 }}>
+            <p style={{ fontSize: '0.91rem', color: 'var(--color-slate-600)', marginBottom: 16 }}>
               טעינת קובץ גיבוי קיים שנשמר בעבר לצורך שחזור מלא של כל נתוני המערכת.
             </p>
             <label className="btn btn-secondary" style={{

@@ -35,7 +35,7 @@ export default function ConfirmModal({
               <AlertTriangle size={24} />
             </span>
             <div>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--coral-600)' }}>{title}</span>
+              <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--coral-600)' }}>{title}</span>
               <h3 className="modal-title">{question}</h3>
             </div>
           </div>
@@ -46,7 +46,7 @@ export default function ConfirmModal({
 
         <div className="form-stack" style={{ gap: 12 }}>
           {description && <div style={{ color: 'var(--ink-700)', fontSize: '0.95rem' }}>{description}</div>}
-          {subDescription && <div className="alert alert-error" style={{ fontSize: '0.85rem' }}>{subDescription}</div>}
+          {subDescription && <div className="alert alert-error" style={{ fontSize: '0.88rem' }}>{subDescription}</div>}
 
           <div className="modal-actions">
             <button

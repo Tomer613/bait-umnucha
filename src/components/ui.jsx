@@ -2,7 +2,7 @@
 // בית ומנוחה - רכיבי ממשק משותפים (כותרת עמוד, אריח מדד, חלונית, טאבים)
 // ==========================================================================
 import React, { useEffect, useState } from 'react';
-import { X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, LayoutGrid } from 'lucide-react';
 
 export function PageHeader({ title, subtitle, actions }) {
   return (
@@ -29,15 +29,37 @@ export function Kpi({ label, value, meta, icon: Icon, variant }) {
   );
 }
 
-export function BuildingDot({ color, large }) {
-  return <span className={`dot${large ? ' dot-lg' : ''}`} style={{ background: color?.primary || 'var(--gold-500)' }} />;
+// שלט הבניין: לוח זכוכית חלבית שמרחף מעל משטח בצבע הבניין, עם מספר הבית מובלט
+// (או ראשי תיבות אם אין מספר בשם)
+function avatarLabel(name = '') {
+  const num = name.match(/\d+/);
+  if (num) return num[0];
+  const words = name.trim().split(/\s+/);
+  return words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2);
+}
+
+export function BuildingAvatar({ name, color, size = 'md' }) {
+  return (
+    <span className={`bavatar bavatar--${size}`} style={{ '--c': color?.primary || 'var(--petrol-600)' }} aria-hidden="true">
+      <span className="bavatar-num">{avatarLabel(name)}</span>
+    </span>
+  );
+}
+
+// אריח "כלל הבניינים"
+export function AllBuildingsAvatar({ size = 'md' }) {
+  return (
+    <span className={`bavatar bavatar--${size} bavatar--all`} aria-hidden="true">
+      <span className="bavatar-num"><LayoutGrid size={size === 'sm' ? 11 : 15} /></span>
+    </span>
+  );
 }
 
 // שם בניין עם נקודת הצבע שלו; לחיץ אם הועבר onClick
 export function BuildingName({ name, color, onClick, sub }) {
   const content = (
     <>
-      <BuildingDot color={color} />
+      <BuildingAvatar name={name} color={color} size="sm" />
       <span>
         {name}
         {sub && <span className="cell-sub">{sub}</span>}

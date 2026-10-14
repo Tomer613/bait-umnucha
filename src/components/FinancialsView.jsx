@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { parseBankReport, parseHiyuvitReport } from '../utils/csvParser';
-import { EXPENSE_CATEGORIES, RECEIPT_TYPES } from '../data/initialData';
+import { RECEIPT_TYPES, OTHER_CATEGORY } from '../data/initialData';
 import {
   UploadCloud,
   CreditCard,
@@ -15,11 +15,12 @@ import {
   TrendingDown,
   Receipt,
   Wrench,
-  CheckCircle2
+  CheckCircle2,
+  ChevronLeft
 } from 'lucide-react';
 import { PageHeader, Kpi, SubTabs, Segmented, Modal, Field, EmptyState, BuildingName, FlashMessage, useFlash } from './ui';
 import SpecialLevies from './SpecialLevies';
-import { formatILS, formatMonth, monthName, splitInOut, sumBy, withBuilding, todayISO, aptDebt } from '../utils/format';
+import { formatILS, formatMonth, monthName, splitInOut, sumBy, withBuilding, todayISO, aptDebt, requestBuildingPick } from '../utils/format';
 
 const SOURCE_BADGE = {
   'בנק': 'badge-petrol',
@@ -29,14 +30,14 @@ const SOURCE_BADGE = {
 };
 
 export default function FinancialsView() {
-  const { currentBuilding, activeSubTab, setActiveSubTab } = useApp();
+  const { activeSubTab, setActiveSubTab, currentMonth } = useApp();
   const subTab = activeSubTab || 'transactions';
 
   return (
     <div className="page">
       <PageHeader
         title="כספים"
-        subtitle={currentBuilding ? currentBuilding.name : 'כלל הבניינים'}
+        subtitle={formatMonth(currentMonth)}
       />
       <SubTabs
         active={subTab}
@@ -60,14 +61,15 @@ function Transactions() {
     recordCashExpense,
     ingestBankReport,
     ingestHiyuvitReport,
-    currentMonth
+    currentMonth,
+    expenseCategories,
+    addExpenseCategory
   } = useApp();
 
   const isGlobalMode = !currentBuilding;
 
-  // בניין היעד לפעולות. במצב "כלל הבניינים" — בחירה מפורשת מהרשימה
-  const [pickedBuildingId, setPickedBuildingId] = useState('');
-  const targetBuilding = currentBuilding || buildings.find(b => b.id === pickedBuildingId) || null;
+  // קליטה והזנה נעשות לבניין מסוים בלבד — הבניין שנבחר ב"עובדים על" למעלה
+  const targetBuilding = currentBuilding;
 
   const [flash, showFlash] = useFlash();
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -86,6 +88,15 @@ function Transactions() {
   const [expAmount, setExpAmount] = useState('');
   const [expDesc, setExpDesc] = useState('');
   const [expDate, setExpDate] = useState(() => todayISO());
+  const [newCategory, setNewCategory] = useState(null); // null = בחירה מהרשימה; מחרוזת = הקלדת קטגוריה חדשה
+
+  const confirmNewCategory = () => {
+    const name = (newCategory || '').trim();
+    if (!name) return;
+    addExpenseCategory(name);
+    setExpCategory(name);
+    setNewCategory(null);
+  };
 
   // ------------------------------------------------------------------------
   // נתונים
@@ -111,7 +122,7 @@ function Transactions() {
   // ------------------------------------------------------------------------
   const requireTarget = () => {
     if (targetBuilding) return true;
-    showFlash('בחרו קודם בניין יעד לפעולה מהרשימה שמעל הכפתורים.', 'error');
+    requestBuildingPick('לאיזה בניין לקלוט? בחרו בניין כדי להמשיך');
     return false;
   };
 
@@ -175,24 +186,8 @@ function Transactions() {
       <FlashMessage flash={flash} />
 
       {isGlobalMode && (
-        <div className="info-panel row" style={{ justifyContent: 'space-between' }}>
-          <div className="row">
-            <span className="field-label">קליטה והזנה עבור בניין:</span>
-            <select
-              className="select input-sm"
-              style={{ width: 'auto', minWidth: 220 }}
-              value={pickedBuildingId}
-              onChange={(e) => setPickedBuildingId(e.target.value)}
-            >
-              <option value="">— בחרו בניין —</option>
-              {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-          </div>
-          {targetBuilding && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setSelectedBuildingId(targetBuilding.id)}>
-              מעבר לתצוגת {targetBuilding.name}
-            </button>
-          )}
+        <div className="alert alert-info">
+          קליטת קבצים והזנה ידנית נעשות לבניין מסוים. בחרו בניין מתפריט הבניינים, או לחצו על פעולה והתפריט ייפתח.
         </div>
       )}
 
@@ -201,19 +196,23 @@ function Transactions() {
           <input type="file" accept=".csv" hidden onChange={(e) => readCsv(e, parseBankReport, ingestBankReport, 'עו״ש הבנק')} onClick={(e) => { if (!requireTarget()) e.preventDefault(); }} />
           <span className="action-tile-icon"><UploadCloud size={20} /></span>
           <span><span className="action-tile-title">דו״ח עו״ש בנק</span><span className="action-tile-sub">העלאת קובץ CSV</span></span>
+          <span className="action-tile-go"><ChevronLeft size={18} /></span>
         </label>
         <label className="action-tile action-tile--gold">
           <input type="file" accept=".csv" hidden onChange={(e) => readCsv(e, parseHiyuvitReport, ingestHiyuvitReport, 'חיובית')} onClick={(e) => { if (!requireTarget()) e.preventDefault(); }} />
           <span className="action-tile-icon"><CreditCard size={20} /></span>
           <span><span className="action-tile-title">דו״ח חיובית</span><span className="action-tile-sub">גבייה באשראי ומס״ב</span></span>
+          <span className="action-tile-go"><ChevronLeft size={18} /></span>
         </label>
         <button type="button" className="action-tile action-tile--green" onClick={() => requireTarget() && setShowReceiptModal(true)}>
           <span className="action-tile-icon"><PlusCircle size={20} /></span>
           <span><span className="action-tile-title">תקבול ידני</span><span className="action-tile-sub">מזומן, העברה או צ׳ק</span></span>
+          <span className="action-tile-go"><ChevronLeft size={18} /></span>
         </button>
         <button type="button" className="action-tile action-tile--coral" onClick={() => requireTarget() && setShowExpenseModal(true)}>
           <span className="action-tile-icon"><MinusCircle size={20} /></span>
           <span><span className="action-tile-title">הוצאת מזומן</span><span className="action-tile-sub">רישום הוצאה מהקופה</span></span>
+          <span className="action-tile-go"><ChevronLeft size={18} /></span>
         </button>
       </div>
 
@@ -287,7 +286,7 @@ function Transactions() {
         isOpen={showReceiptModal}
         onClose={closeReceipt}
         title="תקבול ידני"
-        subtitle={targetBuilding ? `בניין ${targetBuilding.name} · החודשים המסומנים ייסגרו כחוב` : ''}
+        subtitle={targetBuilding ? <><BuildingName name={targetBuilding.name} color={targetBuilding.color} /> · החודשים המסומנים ייסגרו כחוב</> : ''}
       >
         <form onSubmit={submitReceipt} className="form-stack">
           <Field label="דירה ודייר">
@@ -318,7 +317,7 @@ function Transactions() {
                   ))}
                 </div>
               ) : (
-                <span className="row" style={{ color: 'var(--success)', fontSize: '0.88rem', gap: 6 }}>
+                <span className="row" style={{ color: 'var(--success)', fontSize: '0.91rem', gap: 6 }}>
                   <CheckCircle2 size={16} /> אין חוב פתוח. התשלום יירשם לחודש השוטף או כמקדמה.
                 </span>
               )}
@@ -352,14 +351,37 @@ function Transactions() {
         isOpen={showExpenseModal}
         onClose={() => setShowExpenseModal(false)}
         title="הוצאת מזומן"
-        subtitle={targetBuilding ? `בניין ${targetBuilding.name}` : ''}
+        subtitle={targetBuilding ? <BuildingName name={targetBuilding.name} color={targetBuilding.color} /> : ''}
       >
         <form onSubmit={submitExpense} className="form-stack">
-          <Field label="קטגוריה">
-            <select value={expCategory} onChange={(e) => setExpCategory(e.target.value)} className="select">
-              {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
+          {newCategory === null ? (
+            <Field label="קטגוריה">
+              <select
+                value={expCategory}
+                onChange={(e) => e.target.value === '__new__' ? setNewCategory('') : setExpCategory(e.target.value)}
+                className="select"
+              >
+                {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="__new__">+ קטגוריה חדשה…</option>
+              </select>
+            </Field>
+          ) : (
+            <Field label="קטגוריה חדשה" hint="הקטגוריה תישמר ותופיע מעכשיו בכל הבניינים ובדוח ההוצאות.">
+              <div className="row" style={{ flexWrap: 'nowrap' }}>
+                <input
+                  type="text"
+                  autoFocus
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmNewCategory(); } }}
+                  className="input"
+                  placeholder="למשל: הדברה"
+                />
+                <button type="button" className="btn btn-primary" onClick={confirmNewCategory} disabled={!newCategory.trim()}>הוספה</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setNewCategory(null)}>ביטול</button>
+              </div>
+            </Field>
+          )}
           <div className="field-row">
             <Field label="סכום (₪)">
               <input type="number" required min="1" value={expAmount} onChange={(e) => setExpAmount(e.target.value)} className="input" placeholder="150" />
@@ -368,8 +390,8 @@ function Transactions() {
               <input type="date" value={expDate} onChange={(e) => setExpDate(e.target.value)} className="input" />
             </Field>
           </div>
-          <Field label="פירוט">
-            <input type="text" required value={expDesc} onChange={(e) => setExpDesc(e.target.value)} className="input" placeholder="למשל: נורות לד לחדר המדרגות" />
+          <Field label="פירוט" hint={expCategory === OTHER_CATEGORY ? 'בחרתם "אחר" — כתבו כאן על מה ההוצאה.' : undefined}>
+            <input type="text" required value={expDesc} onChange={(e) => setExpDesc(e.target.value)} className="input" placeholder={expCategory === OTHER_CATEGORY ? 'למשל: החלפת מנעול בדלת הכניסה' : 'למשל: נורות לד לחדר המדרגות'} />
           </Field>
           <div className="modal-actions">
             <button type="submit" className="btn btn-primary">שמירת ההוצאה</button>

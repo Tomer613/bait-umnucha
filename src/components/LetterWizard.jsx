@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { LETTER_TEMPLATES } from '../data/initialData';
 import { formatFormattedDate } from '../utils/hebrewDate';
 import { Send, Printer, Users, Copy, Check } from 'lucide-react';
-import { Field, BuildingDot } from './ui';
+import { Field, BuildingAvatar, AllBuildingsAvatar } from './ui';
 
 export default function LetterWizard() {
   const { currentBuilding, buildings, systemSettings } = useApp();
@@ -80,14 +80,14 @@ export default function LetterWizard() {
         <div className="info-panel stack" style={{ gap: 8 }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <span className="row" style={{ gap: 8, fontWeight: 600 }}>
-              {isGlobalMode ? <span className="dot dot-lg dot-all" /> : <BuildingDot color={currentBuilding.color} large />}
+              {isGlobalMode ? <AllBuildingsAvatar size="sm" /> : <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} size="sm" />}
               {isGlobalMode ? `כל דיירי ${buildings.length} הבניינים` : `דיירי ${currentBuilding.name}`}
             </span>
             <span className="badge badge-petrol"><Users size={12} /> {tenantEmails.length} כתובות</span>
           </div>
           {tenantEmails.length > 0 ? (
             <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-              <span className="muted" dir="ltr" style={{ fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+              <span className="muted" dir="ltr" style={{ fontSize: '0.86rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
                 {tenantEmails.slice(0, 3).join(', ')}{tenantEmails.length > 3 ? ` ועוד ${tenantEmails.length - 3}` : ''}
               </span>
               <button type="button" className="btn btn-ghost btn-sm" onClick={copyEmails}>
@@ -95,7 +95,7 @@ export default function LetterWizard() {
               </button>
             </div>
           ) : (
-            <span className="muted" style={{ fontSize: '0.8rem' }}>אין כתובות מייל לדיירים. הוסיפו אותן במסך הדיירים.</span>
+            <span className="muted" style={{ fontSize: '0.86rem' }}>אין כתובות מייל לדיירים. הוסיפו אותן במסך הדיירים.</span>
           )}
         </div>
 
@@ -133,7 +133,7 @@ export default function LetterWizard() {
       {/* תצוגה מקדימה של המכתב */}
       <div className="card letter-sheet">
         {systemSettings?.noticeHeaderPrefix && (
-          <div style={{ textAlign: 'left', fontSize: '0.85rem', fontWeight: 700, color: 'var(--ink-500)', marginBottom: 6 }}>
+          <div style={{ textAlign: 'left', fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink-500)', marginBottom: 6 }}>
             {systemSettings.noticeHeaderPrefix}
           </div>
         )}
@@ -142,7 +142,8 @@ export default function LetterWizard() {
           <div>
             <div className="letterhead-name">{companyName}</div>
             <div className="letterhead-tag">ניהול ועד בית ואחזקת מבנים</div>
-            <div className="muted" style={{ fontSize: '0.86rem', marginTop: 6 }}>
+            <div className="muted title-with-plaque" style={{ fontSize: '0.89rem', marginTop: 8, gap: 8 }}>
+              {!isGlobalMode && <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} size="sm" />}
               {isGlobalMode ? 'לכל דיירי הבניינים המנוהלים' : `לדיירי ${currentBuilding.name}${currentBuilding.address ? `, ${currentBuilding.address}` : ''}`}
             </div>
           </div>
@@ -151,7 +152,7 @@ export default function LetterWizard() {
 
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
           <h1 style={{ fontSize: '1.45rem', fontWeight: 700 }}>{replaceVariables(editedTitle)}</h1>
-          <div className="muted" style={{ fontSize: '0.88rem', marginTop: 6 }}>{formattedDateStr}</div>
+          <div className="muted" style={{ fontSize: '0.91rem', marginTop: 6 }}>{formattedDateStr}</div>
         </div>
 
         <div className="letter-body">{replaceVariables(editedContent)}</div>

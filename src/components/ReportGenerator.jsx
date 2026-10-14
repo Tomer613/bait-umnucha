@@ -5,9 +5,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { exportExpensesMatrixExcel, exportDebtsLedgerExcel, exportMasterSummaryExcel } from '../utils/excelHelper';
-import { EXPENSE_CATEGORIES } from '../data/initialData';
 import { Printer, FileSpreadsheet, Share2, Bookmark, X, Save } from 'lucide-react';
-import { Segmented, Modal, Field, BuildingName } from './ui';
+import { Segmented, Modal, Field, BuildingName, BuildingAvatar } from './ui';
 import {
   HEBREW_MONTHS,
   formatILS,
@@ -20,7 +19,7 @@ import {
 } from '../utils/format';
 
 export default function ReportGenerator() {
-  const { currentBuilding, buildings, setSelectedBuildingId, reportPresets, savePreset, deletePreset, currentMonth, systemSettings } = useApp();
+  const { currentBuilding, buildings, setSelectedBuildingId, reportPresets, savePreset, deletePreset, currentMonth, systemSettings, expenseCategories } = useApp();
 
   const isGlobalMode = !currentBuilding;
   const companyName = systemSettings?.companyName || 'בית ומנוחה';
@@ -99,7 +98,7 @@ export default function ReportGenerator() {
 
   const handleExcelExport = () => {
     if (isGlobalMode) exportMasterSummaryExcel(buildings);
-    else if (reportType === 'expenses') exportExpensesMatrixExcel(currentBuilding, reportYear, EXPENSE_CATEGORIES);
+    else if (reportType === 'expenses') exportExpensesMatrixExcel(currentBuilding, reportYear, reportCategories(currentBuilding, reportYear, expenseCategories));
     else exportDebtsLedgerExcel(currentBuilding);
   };
 
@@ -131,7 +130,7 @@ export default function ReportGenerator() {
         <div className="row" style={{ justifyContent: 'space-between', gap: 14 }}>
           {isGlobalMode ? (
             <p className="section-sub" style={{ margin: 0 }}>
-              דוח מרוכז לכלל הבניינים. לדוח הוצאות או חובות מפורט, בחרו בניין בסרגל העליון או לחצו על שם בניין בטבלה.
+              דוח מרוכז לכלל הבניינים. לדוח הוצאות או חובות מפורט, בחרו בניין מתפריט הבניינים או לחצו על שם בניין בטבלה.
             </p>
           ) : (
             <div className="row" style={{ gap: 12 }}>
@@ -188,12 +187,12 @@ export default function ReportGenerator() {
           <div>
             <div className="letterhead-name">{companyName}</div>
             <div className="letterhead-tag">ניהול ועד בית ואחזקת מבנים</div>
-            <h2 className="letterhead-title">{reportTitle}</h2>
-            {currentBuilding && <div className="muted" style={{ fontSize: '0.85rem' }}>{currentBuilding.address}</div>}
+            <h2 className="letterhead-title title-with-plaque">{currentBuilding && <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} />}{reportTitle}</h2>
+            {currentBuilding && <div className="muted" style={{ fontSize: '0.88rem' }}>{currentBuilding.address}</div>}
           </div>
           <div style={{ textAlign: 'left' }}>
             <img src="/logo.png" alt="" style={{ height: 64, width: 'auto' }} onError={(e) => { e.target.style.display = 'none'; }} />
-            <div className="muted" style={{ fontSize: '0.8rem', marginTop: 6 }}>הופק: {new Date().toLocaleDateString('he-IL')}</div>
+            <div className="muted" style={{ fontSize: '0.86rem', marginTop: 6 }}>הופק: {new Date().toLocaleDateString('he-IL')}</div>
           </div>
         </div>
 
@@ -218,7 +217,7 @@ export default function ReportGenerator() {
                   return (
                     <tr key={b.id}>
                       <td><BuildingName name={b.name} color={b.color} sub={b.address} onClick={() => setSelectedBuildingId(b.id)} /></td>
-                      <td style={{ fontSize: '0.84rem' }}>
+                      <td style={{ fontSize: '0.87rem' }}>
                         {b.bankAccount || <span className="muted">טרם הוזן</span>}
                         {b.hiyuvitCode && <span className="cell-sub">קוד {b.hiyuvitCode}</span>}
                       </td>
@@ -244,7 +243,7 @@ export default function ReportGenerator() {
             </table>
           </div>
         ) : reportType === 'expenses' ? (
-          <ExpensesMatrix building={currentBuilding} year={reportYear} />
+          <ExpensesMatrix building={currentBuilding} year={reportYear} categories={reportCategories(currentBuilding, reportYear, expenseCategories)} />
         ) : (
           <div className="table-wrap">
             <table className="data-table">
@@ -327,7 +326,7 @@ export default function ReportGenerator() {
           <Field label="שם המצב">
             <input type="text" required autoFocus value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} className="input" placeholder="למשל: דוח אמצע שנה" />
           </Field>
-          <div className="info-panel muted" style={{ fontSize: '0.84rem' }}>
+          <div className="info-panel muted" style={{ fontSize: '0.87rem' }}>
             {reportType === 'expenses' ? 'דוח הוצאות שנתי' : 'דוח תקבולים וחובות'}
             {entrance !== 'all' ? ` · כניסה ${entrance}` : ' · כל הבניין'}
             {includeLevies ? ' · כולל קופות מיוחדות' : ''}
@@ -342,8 +341,18 @@ export default function ReportGenerator() {
   );
 }
 
-function ExpensesMatrix({ building, year }) {
-  const sums = EXPENSE_CATEGORIES.map(cat => {
+// קטגוריות הדוח: הרשימה מההגדרות, ובנוסף כל קטגוריה שיש בה הוצאות בשנה הזו
+// (למשל קטגוריה שנמחקה מהרשימה) — כדי שאף סכום לא ייעלם מהדוח
+function reportCategories(building, year, listed) {
+  const used = (building?.expenses || [])
+    .filter(e => e.amount > 0 && (e.month || '').startsWith(year))
+    .map(e => e.category);
+  const extra = Array.from(new Set(used)).filter(c => c && !listed.includes(c));
+  return [...listed, ...extra];
+}
+
+function ExpensesMatrix({ building, year, categories }) {
+  const sums = categories.map(cat => {
     const months = HEBREW_MONTHS.map((_, mIdx) => {
       const key = `${year}-${String(mIdx + 1).padStart(2, '0')}`;
       return (building.expenses || [])

@@ -4,7 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BUILDING_COLOR_PALETTE } from '../data/initialData';
-import { Building2, X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
+import { BuildingAvatar } from './ui';
 
 export default function AddBuildingModal({ isOpen, onClose }) {
   const { buildings, addBuilding } = useApp();
@@ -57,15 +58,17 @@ export default function AddBuildingModal({ isOpen, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Building2 size={22} color="var(--color-gold-500)" />
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-              הקמת בניין חדש במערכת
-            </h3>
+        <div className="modal-header">
+          <div className="row" style={{ gap: 14, flexWrap: 'nowrap' }}>
+            {/* תצוגה חיה של שלט הבניין */}
+            <BuildingAvatar name={name.trim() || '?'} color={selectedColor} size="lg" />
+            <div>
+              <h3 className="modal-title">בניין חדש</h3>
+              <p className="modal-sub">{name.trim() || 'השלט מתעדכן לפי שם הבניין והצבע'}</p>
+            </div>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            <X size={20} color="var(--color-brown-500)" />
+          <button type="button" className="modal-close" onClick={onClose} aria-label="סגירה">
+            <X size={20} />
           </button>
         </div>
 
@@ -77,7 +80,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
               borderRadius: 8,
               padding: '8px 12px',
               color: '#DC2626',
-              fontSize: '0.84rem',
+              fontSize: '0.87rem',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
@@ -89,7 +92,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
           )}
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>
               שם הבניין:
             </label>
             <input
@@ -103,7 +106,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>
               כתובת מלאה:
             </label>
             <input
@@ -117,38 +120,27 @@ export default function AddBuildingModal({ isOpen, onClose }) {
 
           {/* בחירת חותמת צבע ייחודית לבניין */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-800)' }}>
-              חותמת צבע ייחודית לבניין (מזהה ויזואלי בממשק):
+            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-brown-800)' }}>
+              צבע השלט · {selectedColor.name}
             </label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '8px 10px', background: 'var(--color-cream-subtle)', borderRadius: 'var(--radius-sm)' }}>
+            <div className="swatch-grid">
               {BUILDING_COLOR_PALETTE.map((pal) => (
                 <button
                   key={pal.id}
                   type="button"
-                  onClick={() => setSelectedColor(pal)}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: pal.primary,
-                    border: selectedColor.id === pal.id ? '3px solid #231812' : '2px solid #FFFFFF',
-                    boxShadow: selectedColor.id === pal.id ? '0 0 0 2px var(--color-gold-500)' : '0 1px 3px rgba(0,0,0,0.15)',
-                    cursor: 'pointer',
-                    transform: selectedColor.id === pal.id ? 'scale(1.15)' : 'scale(1)',
-                    transition: 'all 0.15s ease'
-                  }}
                   title={pal.name}
-                />
+                  className={`swatch${selectedColor.id === pal.id ? ' is-selected' : ''}`}
+                  onClick={() => setSelectedColor(pal)}
+                >
+                  <BuildingAvatar name={name.trim() || '?'} color={pal} size="sm" />
+                </button>
               ))}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: selectedColor.primary, marginTop: 4, fontWeight: 700 }}>
-              ● נבחר: {selectedColor.name} (סרגלים, כפתורים והדגשות יקבלו גוון זה)
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>
                 פרטי חשבון בנק:
               </label>
               <input
@@ -161,7 +153,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>
                 קוד בניין בחיובית (אם קיים):
               </label>
               <input
@@ -175,7 +167,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>
               יתרת פתיחה בחשבון (₪):
             </label>
             <input
@@ -191,7 +183,7 @@ export default function AddBuildingModal({ isOpen, onClose }) {
               ביטול
             </button>
             <button type="submit" className="btn btn-primary">
-              הקם בניין והקצה חותמת צבע
+              הקמת הבניין
             </button>
           </div>
         </form>

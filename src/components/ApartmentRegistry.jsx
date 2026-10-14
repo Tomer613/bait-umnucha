@@ -12,7 +12,7 @@ import { PAYMENT_METHODS, OCCUPANT_TYPES } from '../data/initialData';
 import { Download, Upload, UserPlus, Edit3, Trash2, Repeat, Search, Users } from 'lucide-react';
 import { PageHeader, Segmented, Modal, Field, EmptyState, BuildingName, FlashMessage, useFlash } from './ui';
 import ConfirmModal from './ConfirmModal';
-import { formatILS, aptDebt, hasDebt, withBuilding, todayISO, monthName } from '../utils/format';
+import { formatILS, aptDebt, hasDebt, withBuilding, todayISO, monthName, requestBuildingPick } from '../utils/format';
 
 const emptyAptForm = (defaultDues) => ({
   aptNum: '',
@@ -103,8 +103,12 @@ export default function ApartmentRegistry() {
   };
 
   const openAdd = () => {
+    if (!currentBuilding) {
+      requestBuildingPick('לאיזה בניין להוסיף דירה? בחרו בניין');
+      return;
+    }
     setAptForm(emptyAptForm(defaultDues));
-    setAptModal({ mode: 'add', buildingId: currentBuilding?.id || buildings[0]?.id || '' });
+    setAptModal({ mode: 'add', buildingId: currentBuilding.id });
   };
 
   const openEdit = (apt) => {
@@ -152,7 +156,7 @@ export default function ApartmentRegistry() {
     <div className="page">
       <PageHeader
         title="דירות ודיירים"
-        subtitle={isGlobalMode ? `${apartments.length} דירות ב-${buildings.length} בניינים` : `${currentBuilding.name} · ${apartments.length} דירות`}
+        subtitle={isGlobalMode ? `${apartments.length} דירות ב-${buildings.length} בניינים` : `${apartments.length} דירות`}
         actions={
           <>
             <button
@@ -238,7 +242,7 @@ export default function ApartmentRegistry() {
                         <span className="cell-sub">{apt.occupantType || 'שוכר'}</span>
                       </td>
                       <td>{apt.phone ? <a href={`tel:${apt.phone}`} className="ltr" style={{ textDecoration: 'none', fontWeight: 500 }}>{apt.phone}</a> : <span className="muted">—</span>}</td>
-                      <td className="muted" style={{ fontSize: '0.84rem' }}>{apt.email || '—'}</td>
+                      <td className="muted" style={{ fontSize: '0.87rem' }}>{apt.email || '—'}</td>
                       <td className="num">{formatILS(apt.monthlyDues)}</td>
                       <td><span className="badge badge-neutral">{apt.paymentMethod || 'חיובית'}</span></td>
                       <td>
@@ -272,16 +276,9 @@ export default function ApartmentRegistry() {
         isOpen={!!aptModal}
         onClose={() => setAptModal(null)}
         title={aptModal?.mode === 'edit' ? `עריכת דירה ${aptForm.aptNum}` : 'הוספת דירה'}
-        subtitle={aptModal && !isGlobalMode ? currentBuilding.name : undefined}
+        subtitle={(() => { const mb = buildings.find(b => b.id === aptModal?.buildingId); return mb ? <BuildingName name={mb.name} color={mb.color} /> : null; })()}
       >
         <form onSubmit={submitApt} className="form-stack">
-          {aptModal?.mode === 'add' && isGlobalMode && (
-            <Field label="בניין">
-              <select className="select" value={aptModal.buildingId} onChange={(e) => setAptModal(prev => ({ ...prev, buildingId: e.target.value }))}>
-                {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </Field>
-          )}
           <div className="field-row">
             <Field label="מספר דירה *">
               <input type="text" required value={aptForm.aptNum} onChange={setField('aptNum')} className="input" placeholder="12" />
@@ -339,7 +336,7 @@ export default function ApartmentRegistry() {
           <div className={`alert ${hasDebt(turnoverApt) ? 'alert-warning' : 'alert-info'}`} style={{ marginBottom: 16, alignItems: 'flex-start' }}>
             <div>
               <strong>דייר יוצא: {turnoverApt.tenantName}</strong>
-              <div style={{ fontSize: '0.85rem', marginTop: 2 }}>
+              <div style={{ fontSize: '0.88rem', marginTop: 2 }}>
                 {hasDebt(turnoverApt)
                   ? `חוב פתוח של ${formatILS(aptDebt(turnoverApt))} (${turnoverApt.debtMonths.length} חודשים) יישאר על שמו ויוצג בהיסטוריה.`
                   : 'אין לדייר חוב פתוח.'}

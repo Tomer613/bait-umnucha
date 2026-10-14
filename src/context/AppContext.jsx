@@ -2,13 +2,23 @@
 // בית ומנוחה - מנהל מצב מרכזי עם שמירה אוטומטית מקומית (LocalStorage)
 // ==========================================================================
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_BUILDINGS, BUILDING_COLOR_PALETTE, getBuildingColor } from '../data/initialData';
+import { INITIAL_BUILDINGS, BUILDING_COLOR_PALETTE, getBuildingColor, EXPENSE_CATEGORIES, OTHER_CATEGORY } from '../data/initialData';
 
 const AppContext = createContext(null);
 
 const STORAGE_KEY = 'bait_umnucha_state_v1';
 const SETTINGS_STORAGE_KEY = 'bait_umnucha_settings_v1';
 const PRESETS_STORAGE_KEY = 'bait_umnucha_report_presets_v2';
+const DISPLAY_STORAGE_KEY = 'bait_umnucha_display_v1';
+
+// הגדרות תצוגה אישיות (נשמרות בדפדפן הזה בלבד)
+export const DEFAULT_DISPLAY = {
+  fontSize: 17,          // גודל טקסט בסיסי בפיקסלים
+  font: 'rubik',         // rubik | heebo | assistant | varela
+  weight: 'normal',      // normal | bold
+  contrast: 'normal',    // normal | high | max
+  density: 'normal'      // compact | normal | spacious
+};
 
 const DEFAULT_PRESETS = [
   { id: 'pre-1', name: 'דוח הוצאות שנתי', reportType: 'expenses', includeLevies: false, entrance: 'all' },
@@ -37,7 +47,8 @@ const DEFAULT_SETTINGS = {
   companyEmail: 'bm4923359@gmail.com',
   companyEmailSecondary: '9926606@gmail.com',
   defaultMonthlyDues: 300,
-  enableIssuesModule: true
+  enableIssuesModule: true,
+  expenseCategories: EXPENSE_CATEGORIES
 };
 
 export function AppProvider({ children }) {
@@ -130,6 +141,34 @@ export function AppProvider({ children }) {
       console.error("Failed to save report presets:", e);
     }
   }, [reportPresets]);
+
+  // הגדרות תצוגה: טעינה, שמירה והחלה על <html>
+  const [displaySettings, setDisplaySettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DISPLAY_STORAGE_KEY);
+      if (saved) return { ...DEFAULT_DISPLAY, ...JSON.parse(saved) };
+    } catch (e) {
+      console.error("Failed to load display settings:", e);
+    }
+    return DEFAULT_DISPLAY;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.fontSize = `${displaySettings.fontSize}px`;
+    root.dataset.font = displaySettings.font;
+    root.dataset.weight = displaySettings.weight;
+    root.dataset.contrast = displaySettings.contrast;
+    root.dataset.density = displaySettings.density;
+    try {
+      localStorage.setItem(DISPLAY_STORAGE_KEY, JSON.stringify(displaySettings));
+    } catch (e) {
+      console.error("Failed to save display settings:", e);
+    }
+  }, [displaySettings]);
+
+  const updateDisplaySettings = (changes) => setDisplaySettings(prev => ({ ...prev, ...changes }));
+  const resetDisplaySettings = () => setDisplaySettings(DEFAULT_DISPLAY);
 
   // שמירה אוטומטית של הגדרות
   useEffect(() => {
@@ -267,6 +306,21 @@ export function AppProvider({ children }) {
         apartments: (b.apartments || []).filter(apt => apt.id !== aptId)
       };
     }));
+  };
+
+  // קטגוריות הוצאה — הרשימה שבהגדרות, ותמיד "אחר" בסוף
+  const customCategories = (systemSettings.expenseCategories || EXPENSE_CATEGORIES).filter(c => c && c !== OTHER_CATEGORY);
+  const expenseCategories = [...customCategories, OTHER_CATEGORY];
+
+  const addExpenseCategory = (name) => {
+    const clean = (name || '').trim();
+    if (!clean || clean === OTHER_CATEGORY || customCategories.includes(clean)) return false;
+    setSystemSettings(prev => ({ ...prev, expenseCategories: [...customCategories, clean] }));
+    return true;
+  };
+
+  const removeExpenseCategory = (name) => {
+    setSystemSettings(prev => ({ ...prev, expenseCategories: customCategories.filter(c => c !== name) }));
   };
 
   // עדכון הגדרות מערכת
@@ -613,7 +667,7 @@ export function AppProvider({ children }) {
     try {
       const parsed = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
       if (Array.isArray(parsed)) {
-        setBuildings(parsed);
+        setBuildings(parsed.map((b, idx) => ({ ...b, color: getBuildingColor(b, idx) })));
         alert("הנתונים שוחזרו בהצלחה!");
       }
     } catch {
@@ -655,6 +709,12 @@ export function AppProvider({ children }) {
     importFullBackup,
     systemSettings,
     updateSystemSettings,
+    expenseCategories,
+    addExpenseCategory,
+    removeExpenseCategory,
+    displaySettings,
+    updateDisplaySettings,
+    resetDisplaySettings,
     updateBuilding,
     deleteBuilding,
     addApartment,

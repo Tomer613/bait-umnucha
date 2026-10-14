@@ -14,7 +14,7 @@ export default function ReportsHub() {
 
   return (
     <div className="page">
-      <PageHeader title="דוחות ומכתבים" subtitle={currentBuilding ? currentBuilding.name : 'כלל הבניינים'} />
+      <PageHeader title="דוחות ומכתבים" subtitle="דוחות כספיים להפקה, ומכתבים לתלייה ולשליחה במייל" />
       <SubTabs
         active={subTab}
         onChange={setActiveSubTab}

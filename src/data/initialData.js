@@ -2,27 +2,43 @@
 // בית ומנוחה - נתוני בסיס ונתוני אמת ל-15 הבניינים המנוהלים
 // ==========================================================================
 
+// פלטת צבעי הבניינים: 16 גוונים רוויים ושונים זה מזה, לזיהוי מהיר באריח הבניין.
+// המזהים (id) נשמרים מהפלטה הקודמת כדי שבניינים שמורים יקבלו אוטומטית את הצבע החדש.
+function buildingColor(id, name, primary) {
+  return {
+    id,
+    name,
+    primary,
+    tint: `${primary}14`,
+    border: `${primary}55`,
+    tagBg: `${primary}24`,
+    text: primary
+  };
+}
+
 export const BUILDING_COLOR_PALETTE = [
-  { id: 'sapphire', name: 'כחול ספיר', primary: '#1A569A', tint: '#EDF4FC', border: '#B9D5F5', tagBg: '#DCEBFA', text: '#103968' },
-  { id: 'amber', name: 'זהב ענבר', primary: '#B88E3E', tint: '#FAF5EA', border: '#EBD8B0', tagBg: '#F5E8C9', text: '#6D4E16' },
-  { id: 'emerald', name: 'ירוק אמרלד', primary: '#1C7444', tint: '#ECF7F1', border: '#B6E2CA', tagBg: '#D5F0E1', text: '#0F4829' },
-  { id: 'terracotta', name: 'חום טרקוטה', primary: '#A6532B', tint: '#FBF3EE', border: '#ECCDC0', tagBg: '#F5DDD3', text: '#632E14' },
-  { id: 'plum', name: 'סגול שזיף', primary: '#6E3C96', tint: '#F6EEFB', border: '#DDC0F0', tagBg: '#ECD4F9', text: '#43205E' },
-  { id: 'teal', name: 'טורקיז פלדה', primary: '#1B7C84', tint: '#EEF8F8', border: '#BAE3E5', tagBg: '#D4F0F2', text: '#104D52' },
-  { id: 'burgundy', name: 'אדום בורדו', primary: '#8E2838', tint: '#FBF0F2', border: '#E9BBC3', tagBg: '#F5D3D9', text: '#58131E' },
-  { id: 'navy', name: 'נייבי עמוק', primary: '#223F6A', tint: '#EFF4FA', border: '#BED2E9', tagBg: '#D7E5F5', text: '#142742' },
-  { id: 'olive', name: 'זית מרווה', primary: '#5E7032', tint: '#F4F7ED', border: '#D2DEB0', tagBg: '#E4ECCB', text: '#39451C' },
-  { id: 'lavender', name: 'לבנדר עמוק', primary: '#574883', tint: '#F4F2FA', border: '#CFC5E8', tagBg: '#E3DDF4', text: '#342953' },
-  { id: 'espresso', name: 'אספרסו חם', primary: '#593B28', tint: '#F8F3EF', border: '#DECFC3', tagBg: '#EFE3D8', text: '#372215' },
-  { id: 'ocean', name: 'אינדיגו אוקיינוס', primary: '#275B7A', tint: '#F0F6F9', border: '#BFD6E5', tagBg: '#D7E7F2', text: '#16374A' },
-  { id: 'bronze', name: 'ברונזה עתיקה', primary: '#8A6A27', tint: '#F9F6ED', border: '#E3D7B5', tagBg: '#F2E8CB', text: '#543F14' },
-  { id: 'crimson', name: 'רובי ארגמן', primary: '#9E243F', tint: '#FCEEF1', border: '#ECB8C3', tagBg: '#F7D0D9', text: '#611224' },
-  { id: 'forest', name: 'פטרול עמוק', primary: '#1E6E66', tint: '#EFF7F6', border: '#BEE1DD', tagBg: '#D5EFEB', text: '#10443F' },
-  { id: 'copper', name: 'נחושת כתומה', primary: '#A64324', tint: '#FBF1EE', border: '#EBC3B8', tagBg: '#F5D6CE', text: '#692510' }
+  buildingColor('sapphire', 'כחול', '#2563EB'),
+  buildingColor('amber', 'כתום', '#EA7A12'),
+  buildingColor('emerald', 'ירוק', '#16A34A'),
+  buildingColor('terracotta', 'ורוד', '#DB2777'),
+  buildingColor('plum', 'סגול', '#7C3AED'),
+  buildingColor('teal', 'טורקיז', '#0D9488'),
+  buildingColor('burgundy', 'אדום', '#DC2626'),
+  buildingColor('navy', 'חום-זהב', '#A16207'),
+  buildingColor('olive', 'תכלת', '#0284C7'),
+  buildingColor('lavender', 'ליים', '#65A30D'),
+  buildingColor('espresso', 'פוקסיה', '#C026D3'),
+  buildingColor('ocean', 'נייבי', '#1E3A8A'),
+  buildingColor('bronze', 'קורל', '#F0643C'),
+  buildingColor('crimson', 'אפור פלדה', '#475569'),
+  buildingColor('forest', 'אמרלד', '#047857'),
+  buildingColor('copper', 'אינדיגו', '#4F46E5')
 ];
 
+// צבע הבניין: לפי המזהה השמור (כך שעדכון הפלטה חל גם על בניינים קיימים), או לפי מיקום
 export function getBuildingColor(building, index = 0) {
-  if (building && building.color && building.color.primary) return building.color;
+  const byId = BUILDING_COLOR_PALETTE.find(c => c.id === building?.color?.id);
+  if (byId) return byId;
   return BUILDING_COLOR_PALETTE[index % BUILDING_COLOR_PALETTE.length];
 }
 
@@ -124,6 +140,10 @@ export const INITIAL_BUILDINGS = [
   { id: "rav-hanan-8", name: "רב חנן 8", address: "רחוב רב חנן 8", bankAccount: "בנק לאומי 10-890-554433", hiyuvitCode: "672", currentBalance: 18200.00, statusMonthUpdated: true, color: BUILDING_COLOR_PALETTE[14], settings: { issuesEnabled: true, reportsViewEnabled: false, recurringExpenses: [] }, apartments: [], expenses: [], specialLevies: [], issues: [] }
 ];
 
+// קטגוריה קבועה בסוף כל רשימה — לכל הוצאה שלא מתאימה לקטגוריה אחרת (הסיבה נכתבת בפירוט)
+export const OTHER_CATEGORY = 'אחר';
+
+// ברירת המחדל של קטגוריות ההוצאה (ניתנות לעריכה בהגדרות)
 export const EXPENSE_CATEGORIES = [
   "ניקיון",
   "חומרי ניקוי",

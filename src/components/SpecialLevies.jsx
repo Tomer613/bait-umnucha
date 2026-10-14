@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Wrench, PlusCircle, CheckCircle2, Target, PiggyBank, FolderKanban } from 'lucide-react';
 import { Kpi, Modal, Field, EmptyState, BuildingName } from './ui';
-import { formatILS, withBuilding } from '../utils/format';
+import { formatILS, withBuilding, requestBuildingPick } from '../utils/format';
 
 export default function SpecialLevies() {
   const { currentBuilding, buildings, setSelectedBuildingId, addSpecialLevy, toggleLevyPayment } = useApp();
@@ -14,13 +14,20 @@ export default function SpecialLevies() {
   const isGlobalMode = !currentBuilding;
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [pickedBuildingId, setPickedBuildingId] = useState(buildings[0]?.id || '');
   const [title, setTitle] = useState('');
   const [splitMode, setSplitMode] = useState('total'); // 'total' | 'perApt'
   const [totalCost, setTotalCost] = useState('');
   const [amountPerApt, setAmountPerApt] = useState('');
 
-  const targetBuilding = currentBuilding || buildings.find(b => b.id === pickedBuildingId) || buildings[0];
+  // פרויקט נפתח תמיד לבניין שנבחר ב"עובדים על" למעלה
+  const targetBuilding = currentBuilding;
+  const openNewLevy = () => {
+    if (!currentBuilding) {
+      requestBuildingPick('לאיזה בניין לפתוח את הגבייה? בחרו בניין');
+      return;
+    }
+    setShowAddModal(true);
+  };
   const aptCount = targetBuilding?.apartments?.length || 0;
 
   const closeModal = () => {
@@ -55,13 +62,13 @@ export default function SpecialLevies() {
         <p className="section-sub" style={{ margin: 0 }}>
           קופות נפרדות לתיקונים ופרויקטים חריגים, עם מעקב מי שילם את חלקו.
         </p>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+        <button onClick={openNewLevy} className="btn btn-primary">
           <PlusCircle size={17} /> פרויקט גבייה חדש
         </button>
       </div>
 
       <div className="kpi-grid">
-        <Kpi icon={FolderKanban} label="פרויקטים פעילים" value={levies.length} meta={isGlobalMode ? 'בכלל הבניינים' : currentBuilding.name} />
+        <Kpi variant="sky" icon={FolderKanban} label="פרויקטים פעילים" value={levies.length} meta={isGlobalMode ? 'בכלל הבניינים' : currentBuilding.name} />
         <Kpi variant="gold" icon={Target} label="יעד גבייה" value={formatILS(totalCostSum)} meta="סך עלות הפרויקטים" />
         <Kpi variant="good" icon={PiggyBank} label="נגבה בפועל" value={formatILS(totalCollected)} meta={`${percentAll}% מהיעד`} />
       </div>
@@ -72,7 +79,7 @@ export default function SpecialLevies() {
             icon={Wrench}
             title="אין פרויקטי גבייה פעילים"
             text="כשיש תיקון חריג (צנרת, לוח חשמל, איטום גג) פותחים פרויקט גבייה, והמערכת מחלקת את העלות בין הדירות ועוקבת אחרי התשלומים."
-            action={<button onClick={() => setShowAddModal(true)} className="btn btn-primary"><PlusCircle size={16} /> פתיחת פרויקט ראשון</button>}
+            action={<button onClick={openNewLevy} className="btn btn-primary"><PlusCircle size={16} /> פתיחת פרויקט ראשון</button>}
           />
         </div>
       ) : (
@@ -97,9 +104,9 @@ export default function SpecialLevies() {
                   <div style={{ textAlign: 'left' }}>
                     <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
                       {formatILS(collected)}
-                      <span className="muted" style={{ fontSize: '0.9rem', fontWeight: 400 }}> / {formatILS(levy.totalAmount)}</span>
+                      <span className="muted" style={{ fontSize: '0.93rem', fontWeight: 400 }}> / {formatILS(levy.totalAmount)}</span>
                     </div>
-                    <div className="muted" style={{ fontSize: '0.82rem' }}>
+                    <div className="muted" style={{ fontSize: '0.86rem' }}>
                       {formatILS(levy.amountPerApt)} לדירה · {paidCount} מתוך {levy.apartments.length} שילמו
                     </div>
                   </div>
@@ -134,17 +141,8 @@ export default function SpecialLevies() {
         </div>
       )}
 
-      <Modal isOpen={showAddModal} onClose={closeModal} title="פרויקט גבייה חדש" subtitle="העלות תחולק בין הדירות, ותיפתח טבלת מעקב תשלומים.">
+      <Modal isOpen={showAddModal} onClose={closeModal} title="פרויקט גבייה חדש" subtitle={targetBuilding ? <><BuildingName name={targetBuilding.name} color={targetBuilding.color} /> · העלות תחולק בין הדירות</> : null}>
         <form onSubmit={handleCreateLevy} className="form-stack">
-          {isGlobalMode && (
-            <Field label="בניין">
-              <select value={pickedBuildingId} onChange={(e) => setPickedBuildingId(e.target.value)} className="select">
-                {buildings.map(b => (
-                  <option key={b.id} value={b.id}>{b.name} ({b.apartments?.length || 0} דירות)</option>
-                ))}
-              </select>
-            </Field>
-          )}
 
           <Field label="שם הפרויקט">
             <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="למשל: תיקון פיצוץ צנרת ראשי" />
