@@ -465,29 +465,6 @@ export default function SettingsView({ onOpenAddBuilding }) {
             </p>
           </div>
         </div>
-
-        {/* כפתור חזרה למערכת הראשית */}
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className="btn btn-secondary"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '10px 20px',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: 'var(--color-slate-900)',
-            color: '#FFFFFF',
-            border: 'none',
-            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)',
-            cursor: 'pointer'
-          }}
-        >
-          <ArrowRight size={18} />
-          <span>חזרה למערכת הראשית</span>
-        </button>
       </div>
 
       {/* הודעת הצלחה צפה */}

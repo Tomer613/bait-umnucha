@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Wallet,
   Settings,
+  ArrowRight,
   X
 } from 'lucide-react';
 import BuildingSelectDropdown from './BuildingSelectDropdown';
@@ -108,27 +109,33 @@ export default function Navbar({ onOpenAddBuilding }) {
         {/* Global Action Controls - מרכז הגדרות ועריכה מרוכז */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
-            onClick={() => setActiveTab('settings')}
-            className="btn btn-secondary btn-sm"
-            title="מרכז הגדרות ועריכת מערכת"
+            onClick={() => {
+              if (isSettings) {
+                setActiveTab('dashboard');
+              } else {
+                setActiveTab('settings');
+              }
+            }}
+            className="btn btn-sm"
+            title={isSettings ? "חזרה למערכת" : "מרכז הגדרות ועריכת מערכת"}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 7,
               padding: '7px 16px',
               borderRadius: 'var(--radius-md)',
-              border: isSettings ? '1.5px solid var(--color-gold-600)' : '1.5px solid var(--color-border-card)',
-              background: isSettings ? 'var(--color-gold-500)' : '#FFFFFF',
+              border: isSettings ? '1.5px solid var(--color-slate-900)' : '1.5px solid var(--color-border-card)',
+              background: isSettings ? 'var(--color-slate-900)' : '#FFFFFF',
               color: isSettings ? '#FFFFFF' : 'var(--color-slate-800)',
               fontWeight: 800,
               fontSize: '0.86rem',
               cursor: 'pointer',
-              boxShadow: isSettings ? '0 2px 10px rgba(197, 155, 39, 0.35)' : 'var(--shadow-xs)',
+              boxShadow: isSettings ? '0 2px 10px rgba(15, 23, 42, 0.25)' : 'var(--shadow-xs)',
               transition: 'all 0.2s ease'
             }}
           >
-            <Settings size={16} />
-            <span>הגדרות ועריכה</span>
+            {isSettings ? <ArrowRight size={16} /> : <Settings size={16} />}
+            <span>{isSettings ? 'חזרה למערכת' : 'הגדרות ועריכה'}</span>
           </button>
 
           <div style={{
