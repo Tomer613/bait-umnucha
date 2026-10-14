@@ -36,10 +36,10 @@ export default function LetterWizard() {
   // התבנית הפעילה כעת
   const activeTemplate = LETTER_TEMPLATES.find(t => t.id === selectedTemplateId) || filteredTemplates[0] || LETTER_TEMPLATES[0];
 
-  // חישוב תאריך מותאם (עברי / לועזי / משולב)
+  // חישוב תאריך מותאם (עברי / לועזי / משולב) בהתאם לבחירת המשתמש
   const formattedDateStr = formatFormattedDate(
     new Date(), 
-    systemSettings?.useHebrewDateDefault ? (systemSettings?.hebrewDateFormat || 'both') : 'gregorian_only'
+    systemSettings?.hebrewDateFormat || 'both'
   );
 
   // החלפת משתנים דינמיים

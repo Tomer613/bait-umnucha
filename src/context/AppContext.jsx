@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS = {
   noticeHeaderPrefix: 'בס״ד',
   noticeSignoff: 'בברכת ועד הבית וההנהלה, בית ומנוחה',
   companyName: 'בית ומנוחה',
-  managerName: 'תומר לוי',
+  managerName: 'ישי לוי',
   companyPhone: '02-555-1234',
   companyEmail: 'office@bait-umnucha.co.il',
   defaultMonthlyDues: 300,
@@ -358,7 +358,7 @@ export function AppProvider({ children }) {
   // ייבוא קובץ מאסטר מרובה לשוניות לכל הבניינים
   const importMasterSheets = (sheetsData) => {
     setBuildings(prev => prev.map(b => {
-      const match = Object.keys(sheetsData).find(sheetName => 
+      const match = Object.keys(sheetsData).find(sheetName =>
         sheetName.includes(b.name) || b.name.includes(sheetName)
       );
       if (match && sheetsData[match]) {
@@ -384,7 +384,7 @@ export function AppProvider({ children }) {
       if (b.id !== buildingId) return b;
       const updatedApartments = (b.apartments || []).map(apt => {
         if (apt.id !== aptId) return apt;
-        
+
         // תיעוד החוב של הדייר הקודם בהיסטוריה
         const prevDebtCount = apt.debtMonths ? apt.debtMonths.length : 0;
         const prevDebtTotal = prevDebtCount * apt.monthlyDues;

@@ -6,45 +6,45 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BUILDING_COLOR_PALETTE } from '../data/initialData';
 import { formatFormattedDate } from '../utils/hebrewDate';
-import { 
-  Building2, 
-  Users, 
-  Sliders, 
-  ShieldCheck, 
-  PlusCircle, 
-  Edit3, 
-  Trash2, 
-  Check, 
-  ArrowRight, 
-  Download, 
-  Upload, 
-  Save, 
-  X, 
-  Calendar, 
-  Palette, 
-  Home, 
-  Phone, 
-  Mail, 
-  DollarSign, 
+import {
+  Building2,
+  Users,
+  Sliders,
+  ShieldCheck,
+  PlusCircle,
+  Edit3,
+  Trash2,
+  Check,
+  ArrowRight,
+  Download,
+  Upload,
+  Save,
+  X,
+  Calendar,
+  Palette,
+  Home,
+  Phone,
+  Mail,
+  DollarSign,
   AlertTriangle,
   FileSpreadsheet
 } from 'lucide-react';
 
 export default function SettingsView({ onOpenAddBuilding }) {
-  const { 
-    buildings, 
-    selectedBuildingId, 
-    setSelectedBuildingId, 
-    setActiveTab, 
-    updateBuilding, 
-    deleteBuilding, 
-    addApartment, 
-    updateApartment, 
-    deleteApartment, 
-    systemSettings, 
-    updateSystemSettings, 
-    exportFullBackup, 
-    importFullBackup 
+  const {
+    buildings,
+    selectedBuildingId,
+    setSelectedBuildingId,
+    setActiveTab,
+    updateBuilding,
+    deleteBuilding,
+    addApartment,
+    updateApartment,
+    deleteApartment,
+    systemSettings,
+    updateSystemSettings,
+    exportFullBackup,
+    importFullBackup
   } = useApp();
 
   // לשונית פנימית פעילה בתוך מרכז ההגדרות
@@ -181,7 +181,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
     noticeHeaderPrefix: systemSettings?.noticeHeaderPrefix || 'בס״ד',
     noticeSignoff: systemSettings?.noticeSignoff || 'בברכת ועד הבית וההנהלה, בית ומנוחה',
     companyName: systemSettings?.companyName || 'בית ומנוחה',
-    managerName: systemSettings?.managerName || 'תומר לוי',
+    managerName: systemSettings?.managerName || 'ישי לוי',
     companyPhone: systemSettings?.companyPhone || '02-555-1234',
     companyEmail: systemSettings?.companyEmail || 'office@bait-umnucha.co.il',
     defaultMonthlyDues: systemSettings?.defaultMonthlyDues || 300,
@@ -196,7 +196,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
   return (
     <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
-      
+
       {/* --------------------------------------------------------------------
           באנר עליון: כותרת המרכז + כפתור חזרה למערכת הראשית
           -------------------------------------------------------------------- */}
@@ -1154,7 +1154,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
           ==================================================================== */}
       {innerTab === 'preferences' && (
         <form onSubmit={handleSavePreferences} style={{ maxWidth: 880 }}>
-          
+
           {/* כרטיס תאריך עברי ומודעות */}
           <div style={{
             background: '#FFFFFF',
@@ -1188,23 +1188,10 @@ export default function SettingsView({ onOpenAddBuilding }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* מתג הפעלה */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={prefForm.useHebrewDateDefault}
-                  onChange={(e) => setPrefForm({ ...prefForm, useHebrewDateDefault: e.target.checked })}
-                  style={{ width: 18, height: 18, accentColor: 'var(--color-gold-600)' }}
-                />
-                <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--color-slate-800)' }}>
-                  הפעל תאריך עברי כברירת מחדל בכל המודעות והמכתבים
-                </span>
-              </label>
-
-              {/* אופן תצוגת התאריך */}
+              {/* אופן תצוגת התאריך - בחירה ישירה ובלעדית ללא צ'קבוקס כפול */}
               <div>
-                <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 8, color: 'var(--color-slate-800)' }}>
-                  פורמט התאריך במודעות:
+                <span style={{ display: 'block', fontSize: '0.92rem', fontWeight: 800, marginBottom: 10, color: 'var(--color-slate-900)' }}>
+                  בחר את אופן הצגת התאריך במודעות ובמכתבים:
                 </span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
                   {[
