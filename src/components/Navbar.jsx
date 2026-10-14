@@ -145,15 +145,18 @@ export default function Navbar({ onOpenAddBuilding }) {
       </div>
 
       {/* --------------------------------------------------------------------
-          שורה 2: שורת מצב ומעבר - סוויץ' בין "כלל הבניינים" לבין "בניין מסוים"
-          *** הדרופליסט מופיע אך ורק כאשר הסוויץ' על "בניין מסוים"! ***
+          שורות 2 ו-3: שורת בחירת בניין ושורת לשוניות ניווט שוטפות
+          *** מוצגות רק בעבודה השוטפת, ומוסתרות לחלוטין במסך הגדרות ועריכה! ***
           -------------------------------------------------------------------- */}
-      <div style={{
-        background: currentBuilding ? `linear-gradient(90deg, ${activeColor.tint} 0%, #FFFFFF 100%)` : 'linear-gradient(90deg, #FBF8F3 0%, #FFFFFF 100%)',
-        borderTop: '1px solid var(--color-beige-border)',
-        borderBottom: `2px solid ${activeColor.border}`,
-        transition: 'all 0.3s ease'
-      }}>
+      {activeTab !== 'settings' && (
+        <>
+          {/* שורה 2: שורת מצב ומעבר - סוויץ' בין "כלל הבניינים" לבין "בניין מסוים" */}
+          <div style={{
+            background: currentBuilding ? `linear-gradient(90deg, ${activeColor.tint} 0%, #FFFFFF 100%)` : 'linear-gradient(90deg, #FBF8F3 0%, #FFFFFF 100%)',
+            borderTop: '1px solid var(--color-beige-border)',
+            borderBottom: `2px solid ${activeColor.border}`,
+            transition: 'all 0.3s ease'
+          }}>
         <div style={{
           maxWidth: 1300,
           margin: '0 auto',
@@ -358,6 +361,8 @@ export default function Navbar({ onOpenAddBuilding }) {
           </button>
         </div>
       </div>
+    </>
+  )}
 
     </header>
   );

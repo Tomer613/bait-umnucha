@@ -51,7 +51,7 @@ function MainApp() {
       <main style={{ 
         flex: 1, 
         paddingBottom: 60,
-        background: activeColor 
+        background: (activeColor && activeTab !== 'settings') 
           ? `linear-gradient(180deg, ${activeColor.tint} 0%, var(--color-cream-bg) 280px)` 
           : 'var(--color-cream-bg)',
         transition: 'background 0.35s ease'
