@@ -1,5 +1,6 @@
 // ==========================================================================
 // בית ומנוחה - דשבורד-על (15 בניינים) ודשבורד ממוקד לבניין נבחר
+// מבנה ממשק אחיד, עקבי וקבוע לחלוטין בין "כלל הבניינים" לבין "בניין מסוים"
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -27,193 +28,441 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
   const { buildings, selectedBuildingId, setSelectedBuildingId, currentBuilding, setActiveTab } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --------------------------------------------------------------------------
-  // תצוגת דשבורד ממוקד לבניין יחיד שנבחר בדרופליסט
-  // --------------------------------------------------------------------------
-  if (selectedBuildingId !== 'all' && currentBuilding) {
-    const bApts = currentBuilding.apartments || [];
-    const bDebtsCount = bApts.filter(a => a.debtMonths && a.debtMonths.length > 0).length;
-    const bDebtsSum = bApts.reduce((acc, a) => acc + ((a.debtMonths?.length || 0) * (a.monthlyDues || 0)), 0);
-    const bOpenIssues = (currentBuilding.issues || []).filter(i => i.status === 'open').length;
-    const bExpenses = currentBuilding.expenses || [];
+  const isGlobalMode = !currentBuilding || selectedBuildingId === 'all';
 
-    return (
-      <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
-        
-        {/* כותרת עליונה עם חזרה לכל הבניינים */}
-        <div style={{
-          background: currentBuilding.color ? `linear-gradient(135deg, ${currentBuilding.color.tint} 0%, #FFFFFF 100%)` : '#FFFFFF',
-          borderRadius: 'var(--radius-md)',
-          padding: '24px 28px',
-          border: `1px solid ${currentBuilding.color?.border || 'var(--color-beige-border)'}`,
-          borderRight: `6px solid ${currentBuilding.color?.primary || 'var(--color-gold-500)'}`,
-          boxShadow: 'var(--shadow-sm)',
-          marginBottom: 24,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16
-        }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <span 
-                className="badge" 
-                style={{ 
-                  background: currentBuilding.color?.tagBg || 'var(--color-gold-100)',
-                  color: currentBuilding.color?.text || 'var(--color-gold-700)',
-                  border: `1px solid ${currentBuilding.color?.border || 'var(--color-gold-200)'}`,
-                  fontSize: '0.8rem',
-                  fontWeight: 800,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5
-                }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: currentBuilding.color?.primary || 'var(--color-gold-500)' }} />
-                חותמת צבע: {currentBuilding.color?.name || 'פעיל'}
-              </span>
-            </div>
-            
-            <h2 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-brown-900)', lineHeight: 1.2 }}>
-              {currentBuilding.name}
-            </h2>
-            <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem', marginTop: 4 }}>
-              📍 {currentBuilding.address} • 🏦 {currentBuilding.bankAccount} • קוד חיובית: {currentBuilding.hiyuvitCode || 'לא הוגדר'}
-            </p>
-          </div>
+  // --------------------------------------------------------------------------
+  // חישובי מדדים כלליים (כלל 15 הבניינים)
+  // --------------------------------------------------------------------------
+  const totalBalance = buildings.reduce((acc, b) => acc + (b.currentBalance || 0), 0);
+  const totalApartments = buildings.reduce((acc, b) => acc + (b.apartments ? b.apartments.length : 0), 0);
+  
+  let totalDebtsSum = 0;
+  let totalDebtorsCount = 0;
+  buildings.forEach(b => {
+    (b.apartments || []).forEach(apt => {
+      const debtCount = apt.debtMonths ? apt.debtMonths.length : 0;
+      if (debtCount > 0) {
+        totalDebtorsCount++;
+        totalDebtsSum += debtCount * (apt.monthlyDues || 0);
+      }
+    });
+  });
 
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setActiveTab('financials')}
-              className="btn btn-primary btn-md"
+  const totalOpenIssues = buildings.reduce((acc, b) => {
+    const openCount = (b.issues || []).filter(i => i.status === 'open').length;
+    return acc + openCount;
+  }, 0);
+
+  const updatedBuildingsCount = buildings.filter(b => b.statusMonthUpdated).length;
+
+  const filteredBuildings = buildings.filter(b => 
+    b.name.includes(searchTerm) || b.address.includes(searchTerm)
+  );
+
+  const enterBuilding = (buildingId, targetTab = 'financials') => {
+    setSelectedBuildingId(buildingId);
+    setActiveTab(targetTab);
+  };
+
+  // --------------------------------------------------------------------------
+  // חישובי מדדים לבניין יחיד
+  // --------------------------------------------------------------------------
+  const bApts = currentBuilding?.apartments || [];
+  const bDebtsCount = bApts.filter(a => a.debtMonths && a.debtMonths.length > 0).length;
+  const bDebtsSum = bApts.reduce((acc, a) => acc + ((a.debtMonths?.length || 0) * (a.monthlyDues || 0)), 0);
+  const bOpenIssues = (currentBuilding?.issues || []).filter(i => i.status === 'open').length;
+  const bExpenses = currentBuilding?.expenses || [];
+
+  const activeColor = currentBuilding?.color || {
+    primary: 'var(--color-gold-500)',
+    tint: 'var(--color-gold-50)',
+    border: 'var(--color-gold-300)',
+    tagBg: 'var(--color-gold-100)',
+    text: 'var(--color-gold-700)',
+    name: 'זהב מותג'
+  };
+
+  return (
+    <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
+      
+      {/* --------------------------------------------------------------------
+          באנר ראשי עליון — מבנה קבוע ואחיד לחלוטין בשני המצבים!
+          -------------------------------------------------------------------- */}
+      <div className="card" style={{
+        background: isGlobalMode 
+          ? 'linear-gradient(135deg, #FFFFFF 0%, var(--color-gold-50) 100%)' 
+          : `linear-gradient(135deg, ${activeColor.tint} 0%, #FFFFFF 100%)`,
+        borderRadius: 'var(--radius-md)',
+        padding: '24px 28px',
+        border: `1.5px solid ${isGlobalMode ? 'var(--color-gold-300)' : activeColor.border}`,
+        borderRight: `6px solid ${isGlobalMode ? 'var(--color-gold-500)' : activeColor.primary}`,
+        boxShadow: 'var(--shadow-sm)',
+        marginBottom: 24,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span 
+              className="badge" 
+              style={{ 
+                background: isGlobalMode ? 'var(--color-gold-100)' : activeColor.tagBg,
+                color: isGlobalMode ? 'var(--color-gold-700)' : activeColor.text,
+                border: `1px solid ${isGlobalMode ? 'var(--color-gold-300)' : activeColor.border}`,
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5
+              }}
             >
-              <Layers size={17} />
-              <span>קליטת כספים ותנועות</span>
-            </button>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: isGlobalMode ? 'var(--color-gold-500)' : activeColor.primary }} />
+              {isGlobalMode ? "מרכז שליטה מצרפי" : `חותמת צבע: ${activeColor.name}`}
+            </span>
+            <span style={{ fontSize: '0.85rem', color: isGlobalMode ? 'var(--color-gold-700)' : activeColor.primary, fontWeight: 700 }}>
+              {isGlobalMode ? `כלל ${buildings.length} הבניינים המנוהלים` : currentBuilding.name}
+            </span>
+          </div>
+          
+          <h2 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-brown-900)', lineHeight: 1.2, margin: 0 }}>
+            {isGlobalMode ? "מרכז שליטה — מבט-על לכלל הבניינים" : currentBuilding.name}
+          </h2>
+
+          <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem', margin: '6px 0 0' }}>
+            {isGlobalMode
+              ? `מרכז שליטה וניהול עבור כלל ${buildings.length} הבניינים המנוהלים בחברת בית ומנוחה`
+              : `📍 ${currentBuilding.address} • 🏦 ${currentBuilding.bankAccount} • קוד חיובית: ${currentBuilding.hiyuvitCode || 'לא הוגדר'}`}
+          </p>
+        </div>
+
+        {/* כפתורי פעולה עליונים — זהים לחלוטין בשני המצבים! */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {isGlobalMode && onOpenAddBuilding && (
             <button
-              onClick={() => setActiveTab('reports')}
+              onClick={onOpenAddBuilding}
               className="btn btn-secondary btn-md"
+              style={{ background: '#FFFFFF', borderColor: 'var(--color-gold-500)', color: 'var(--color-gold-700)' }}
             >
-              <FileSpreadsheet size={17} />
-              <span>מחולל דוחות ואקסל</span>
+              <PlusCircle size={17} />
+              <span>הוספת בניין חדש</span>
             </button>
-          </div>
+          )}
+          <button
+            onClick={() => setActiveTab('financials')}
+            className="btn btn-primary btn-md"
+          >
+            <Layers size={17} />
+            <span>קליטת כספים ותנועות</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className="btn btn-secondary btn-md"
+          >
+            <FileSpreadsheet size={17} />
+            <span>מחולל דוחות ואקסל</span>
+          </button>
         </div>
+      </div>
 
-        {/* 4 כרטיסי מדד לבניין הספציפי */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-          marginBottom: 28
-        }}>
-          {/* קופה נוכחית */}
-          <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-gold-500)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>יתרת קופה עדכנית</span>
-              <div style={{ background: 'var(--color-gold-100)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-                <Wallet size={18} color="var(--color-gold-600)" />
-              </div>
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-              {(currentBuilding.currentBalance || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
-            </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-gold-600)' }}>בחשבון הבנק ובקופת המזומן</span>
-          </div>
-
-          {/* סטטוס חודשי */}
-          <div className="card" style={{ background: '#FFFFFF', borderRight: `4px solid ${currentBuilding.statusMonthUpdated ? 'var(--color-success)' : 'var(--color-warning)'}` }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>סטטוס קליטת החודש</span>
-              <div style={{ background: currentBuilding.statusMonthUpdated ? 'var(--color-success-bg)' : 'var(--color-warning-bg)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-                {currentBuilding.statusMonthUpdated ? <CheckCircle2 size={18} color="var(--color-success)" /> : <Clock size={18} color="var(--color-warning)" />}
-              </div>
-            </div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: currentBuilding.statusMonthUpdated ? 'var(--color-success)' : 'var(--color-warning)' }}>
-              {currentBuilding.statusMonthUpdated ? 'מעודכן לספטמבר' : 'ממתין לקובצי חודש'}
-            </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)' }}>סליקת חיובית ועו״ש</span>
-          </div>
-
-          {/* חובות דיירים */}
-          <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-danger)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>חובות דיירים בבניין</span>
-              <div style={{ background: 'var(--color-danger-bg)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-                <AlertCircle size={18} color="var(--color-danger)" />
-              </div>
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: bDebtsSum > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-              {bDebtsSum > 0 ? `${bDebtsSum.toLocaleString('he-IL')} ₪` : 'מאופס'}
-            </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)' }}>
-              {bDebtsCount > 0 ? `${bDebtsCount} דירות בפיגור תשלום` : 'כלל הדירות שילמו בזמן'}
+      {/* --------------------------------------------------------------------
+          4 אריחי מדדי מפתח (KPIs) — קבועים ונשארים תמיד בשני המצבים!
+          -------------------------------------------------------------------- */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: 16,
+        marginBottom: 24
+      }}>
+        {/* קופה / יתרה */}
+        <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-gold-500)', padding: '18px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>
+              {isGlobalMode ? "יתרה מצרפית בקופות" : "יתרת קופה עדכנית"}
             </span>
-          </div>
-
-          {/* דירות בבניין */}
-          <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-brown-500)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>דירות מנוהלות</span>
-              <div style={{ background: 'var(--color-cream-subtle)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-                <Users size={18} color="var(--color-brown-600)" />
-              </div>
+            <div style={{ background: 'var(--color-gold-100)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
+              <Wallet size={18} color="var(--color-gold-600)" />
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-              {bApts.length} דירות
-            </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)' }}>
-              {bOpenIssues > 0 ? `${bOpenIssues} פניות ועד פתוחות` : 'אין פניות פתוחות'}
-            </span>
           </div>
+          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+            {(isGlobalMode ? totalBalance : (currentBuilding.currentBalance || 0)).toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
+          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-gold-600)' }}>
+            {isGlobalMode ? `בכל ${buildings.length} חשבונות הבנק` : "בחשבון הבנק ובקופת המזומן"}
+          </span>
         </div>
 
-        {/* סרגל קיצורי דרך מהירים לפעולות בבניין */}
-        <div style={{
-          background: 'var(--color-gold-50)',
-          border: '1px solid var(--color-gold-200)',
-          borderRadius: 'var(--radius-md)',
-          padding: '16px 20px',
-          marginBottom: 28,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12
+        {/* סטטוס קליטה / עדכון */}
+        <div className="card" style={{ 
+          background: '#FFFFFF', 
+          borderRight: `4px solid ${isGlobalMode ? 'var(--color-success)' : (currentBuilding.statusMonthUpdated ? 'var(--color-success)' : 'var(--color-warning)')}`,
+          padding: '18px 20px' 
         }}>
-          <div style={{ fontWeight: 700, color: 'var(--color-brown-900)', fontSize: '0.95rem' }}>
-            ⚡ פעולות מהירות עבור {currentBuilding.name}:
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>
+              סטטוס קליטת החודש
+            </span>
+            <div style={{ 
+              background: isGlobalMode || currentBuilding.statusMonthUpdated ? 'var(--color-success-bg)' : 'var(--color-warning-bg)', 
+              padding: 7, 
+              borderRadius: 'var(--radius-sm)' 
+            }}>
+              {isGlobalMode || currentBuilding.statusMonthUpdated ? (
+                <CheckCircle2 size={18} color="var(--color-success)" />
+              ) : (
+                <Clock size={18} color="var(--color-warning)" />
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button onClick={() => setActiveTab('financials')} className="btn btn-secondary btn-sm">
-              <Layers size={15} />
-              <span>תנועות וכספים</span>
-            </button>
-            <button onClick={() => setActiveTab('reports')} className="btn btn-secondary btn-sm">
-              <FileSpreadsheet size={15} />
-              <span>מחולל דוחות</span>
-            </button>
-            <button onClick={() => setActiveTab('apartments')} className="btn btn-secondary btn-sm">
-              <Users size={15} />
-              <span>רשימת דירות</span>
-            </button>
-            <button onClick={() => setActiveTab('levies')} className="btn btn-secondary btn-sm">
-              <Wrench size={15} />
-              <span>גבייה מיוחדת</span>
-            </button>
-            <button onClick={() => setActiveTab('letters')} className="btn btn-secondary btn-sm">
-              <Send size={15} />
-              <span>אשף מכתבים וג'ימייל</span>
-            </button>
-            <button onClick={() => setActiveTab('issues')} className="btn btn-secondary btn-sm">
-              <MessageSquare size={15} />
-              <span>פניות ותקלות ({bOpenIssues})</span>
-            </button>
+          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+            {isGlobalMode 
+              ? `${updatedBuildingsCount} / ${buildings.length}` 
+              : (currentBuilding.statusMonthUpdated ? 'מעודכן' : 'ממתין לקובץ')}
           </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-500)' }}>
+            {isGlobalMode ? "בניינים עודכנו בספטמבר" : "סליקת חיובית ועו״ש"}
+          </span>
         </div>
 
-        {/* שני בלוקים: דירות וחובות + תנועות אחרונות */}
+        {/* חובות דיירים */}
+        <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-danger)', padding: '18px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>
+              {isGlobalMode ? "חובות דיירים פתוחים" : "חובות דיירים בבניין"}
+            </span>
+            <div style={{ background: 'var(--color-danger-bg)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
+              <AlertCircle size={18} color="var(--color-danger)" />
+            </div>
+          </div>
+          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: (isGlobalMode ? totalDebtsSum : bDebtsSum) > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+            {(isGlobalMode ? totalDebtsSum : bDebtsSum).toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
+          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-danger)' }}>
+            {isGlobalMode 
+              ? `ב-${totalDebtorsCount} דירות בפיגור` 
+              : (bDebtsCount > 0 ? `${bDebtsCount} דירות בפיגור תשלום` : "כלל הדירות שילמו בזמן")}
+          </span>
+        </div>
+
+        {/* פניות ותקלות */}
+        <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-brown-600)', padding: '18px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>
+              {isGlobalMode ? "פניות ותקלות פתוחות" : "פניות שירות פתוחות"}
+            </span>
+            <div style={{ background: 'var(--color-rose-100)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
+              <MessageSquare size={18} color="var(--color-brown-700)" />
+            </div>
+          </div>
+          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+            {isGlobalMode ? totalOpenIssues : bOpenIssues}
+          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-600)' }}>
+            {isGlobalMode ? `בכלל ${buildings.length} הבניינים` : "בטיפול בבניין זה"}
+          </span>
+        </div>
+      </div>
+
+      {/* --------------------------------------------------------------------
+          סרגל פעולות מהירות — קבוע ונשאר תמיד בשני המצבים!
+          -------------------------------------------------------------------- */}
+      <div style={{
+        background: 'var(--color-gold-50)',
+        border: '1px solid var(--color-gold-200)',
+        borderRadius: 'var(--radius-md)',
+        padding: '16px 20px',
+        marginBottom: 28,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 12
+      }}>
+        <div style={{ fontWeight: 700, color: 'var(--color-brown-900)', fontSize: '0.95rem' }}>
+          ⚡ פעולות מהירות {isGlobalMode ? "במבט-על מצרפי" : `עבור ${currentBuilding.name}`}:
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={() => setActiveTab('financials')} className="btn btn-secondary btn-sm" style={{ background: '#FFFFFF' }}>
+            <Layers size={15} />
+            <span>תנועות וכספים</span>
+          </button>
+          <button onClick={() => setActiveTab('reports')} className="btn btn-secondary btn-sm" style={{ background: '#FFFFFF' }}>
+            <FileSpreadsheet size={15} />
+            <span>מחולל דוחות</span>
+          </button>
+          <button onClick={() => setActiveTab('apartments')} className="btn btn-secondary btn-sm" style={{ background: '#FFFFFF' }}>
+            <Users size={15} />
+            <span>רשימת דירות</span>
+          </button>
+          <button onClick={() => setActiveTab('levies')} className="btn btn-secondary btn-sm" style={{ background: '#FFFFFF' }}>
+            <Wrench size={15} />
+            <span>גבייה מיוחדת</span>
+          </button>
+          <button onClick={() => setActiveTab('letters')} className="btn btn-secondary btn-sm" style={{ background: '#FFFFFF' }}>
+            <Send size={15} />
+            <span>אשף מכתבים וג'ימייל</span>
+          </button>
+          <button onClick={() => setActiveTab('issues')} className="btn btn-secondary btn-sm" style={{ background: '#FFFFFF' }}>
+            <MessageSquare size={15} />
+            <span>פניות ותקלות ({isGlobalMode ? totalOpenIssues : bOpenIssues})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* --------------------------------------------------------------------
+          אזור התוכן המרכזי
+          -------------------------------------------------------------------- */}
+      {isGlobalMode ? (
+        /* Buildings Table Section for All Buildings */
+        <div className="card" style={{ background: '#FFFFFF', padding: 0, overflow: 'hidden' }}>
+          {/* Table Header & Search */}
+          <div style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid var(--color-beige-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16
+          }}>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-brown-900)', margin: 0 }}>
+                רשימת {buildings.length} הבניינים המנוהלים
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-brown-500)', margin: '4px 0 0' }}>
+                לחץ על שורת בניין לצפייה ממוקדת או בחר פעולה מהירה
+              </p>
+            </div>
+
+            <div style={{ position: 'relative', width: '100%', maxWidth: 320 }}>
+              <Search size={18} color="var(--color-brown-400)" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input 
+                type="text"
+                placeholder="חיפוש בניין לפי שם או כתובת..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input"
+                style={{ paddingRight: 38 }}
+              />
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+              <thead>
+                <tr style={{ background: 'var(--color-cream-subtle)', borderBottom: '1px solid var(--color-beige-border)' }}>
+                  <th style={{ padding: '14px 24px', fontWeight: 700 }}>בניין וכתובת</th>
+                  <th style={{ padding: '14px 16px', fontWeight: 700 }}>דירות</th>
+                  <th style={{ padding: '14px 16px', fontWeight: 700 }}>יתרת קופה</th>
+                  <th style={{ padding: '14px 16px', fontWeight: 700 }}>סטטוס קליטה</th>
+                  <th style={{ padding: '14px 16px', fontWeight: 700 }}>חובות פתוחים</th>
+                  <th style={{ padding: '14px 16px', fontWeight: 700 }}>פניות</th>
+                  <th style={{ padding: '14px 20px', fontWeight: 700, textAlign: 'center' }}>פעולות מהירות</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredBuildings.map(b => {
+                  const bDebts = (b.apartments || []).reduce((acc, a) => {
+                    return acc + ((a.debtMonths?.length || 0) * (a.monthlyDues || 0));
+                  }, 0);
+                  const bIssuesCount = (b.issues || []).filter(i => i.status === 'open').length;
+
+                  return (
+                    <tr 
+                      key={b.id}
+                      onClick={() => enterBuilding(b.id, 'financials')}
+                      style={{ 
+                        borderBottom: '1px solid var(--color-beige-divider)',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-gold-50)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '16px 24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 12, height: 12, borderRadius: '50%', background: b.color?.primary || 'var(--color-gold-500)', display: 'inline-block' }} />
+                          <div>
+                            <div style={{ fontWeight: 800, color: 'var(--color-brown-900)', fontSize: '0.98rem' }}>{b.name}</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)' }}>{b.address}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '16px 16px', fontWeight: 600, color: 'var(--color-brown-700)' }}>
+                        {b.apartments ? b.apartments.length : 0} דירות
+                      </td>
+
+                      <td style={{ padding: '16px 16px', fontWeight: 800, color: 'var(--color-brown-900)' }}>
+                        {(b.currentBalance || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
+                      </td>
+
+                      <td style={{ padding: '16px 16px' }}>
+                        {b.statusMonthUpdated ? (
+                          <span className="badge badge-success">מעודכן לספטמבר</span>
+                        ) : (
+                          <span className="badge badge-neutral">ממתין לקליטה</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '16px 16px' }}>
+                        {bDebts > 0 ? (
+                          <span className="badge badge-danger">
+                            {bDebts.toLocaleString('he-IL')} ₪
+                          </span>
+                        ) : (
+                          <span className="badge badge-success">תקין (0 ₪)</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '16px 16px' }}>
+                        {bIssuesCount > 0 ? (
+                          <span className="badge badge-gold">
+                            <MessageSquare size={13} />
+                            {bIssuesCount} פניות
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.85rem', color: 'var(--color-brown-400)' }}>אין פניות</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '16px 20px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'inline-flex', gap: 6 }}>
+                          <button
+                            onClick={() => enterBuilding(b.id, 'financials')}
+                            className="btn btn-primary btn-sm"
+                            title="ניהול כספים ותנועות"
+                          >
+                            <span>ניהול כספים</span>
+                            <ArrowUpRight size={14} />
+                          </button>
+                          <button
+                            onClick={() => enterBuilding(b.id, 'reports')}
+                            className="btn btn-secondary btn-sm"
+                            title="הפקת דוחות"
+                          >
+                            <FileSpreadsheet size={15} />
+                          </button>
+                          <button
+                            onClick={() => enterBuilding(b.id, 'letters')}
+                            className="btn btn-secondary btn-sm"
+                            title="אשף מכתבים"
+                          >
+                            <Send size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* שני בלוקים לבניין יחיד: דירות וחובות + תנועות אחרונות */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20 }}>
           
           {/* מצב דירות וחובות */}
@@ -328,300 +577,7 @@ export default function MasterDashboard({ onOpenAddBuilding }) {
           </div>
 
         </div>
-
-      </div>
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // תצוגת דשבורד-על לכל 15 הבניינים (כאשר נבחר 'all')
-  // --------------------------------------------------------------------------
-  const totalBalance = buildings.reduce((acc, b) => acc + (b.currentBalance || 0), 0);
-  const totalApartments = buildings.reduce((acc, b) => acc + (b.apartments ? b.apartments.length : 0), 0);
-  
-  let totalDebtsSum = 0;
-  let totalDebtorsCount = 0;
-  buildings.forEach(b => {
-    (b.apartments || []).forEach(apt => {
-      const debtCount = apt.debtMonths ? apt.debtMonths.length : 0;
-      if (debtCount > 0) {
-        totalDebtorsCount++;
-        totalDebtsSum += debtCount * (apt.monthlyDues || 0);
-      }
-    });
-  });
-
-  const totalOpenIssues = buildings.reduce((acc, b) => {
-    const openCount = (b.issues || []).filter(i => i.status === 'open').length;
-    return acc + openCount;
-  }, 0);
-
-  const updatedBuildingsCount = buildings.filter(b => b.statusMonthUpdated).length;
-
-  const filteredBuildings = buildings.filter(b => 
-    b.name.includes(searchTerm) || b.address.includes(searchTerm)
-  );
-
-  const enterBuilding = (buildingId, targetTab = 'financials') => {
-    setSelectedBuildingId(buildingId);
-    setActiveTab(targetTab);
-  };
-
-  return (
-    <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 20px' }}>
-      
-      {/* Welcome & Overview Header */}
-      <div style={{
-        marginBottom: 24
-      }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-          מרכז שליטה — מבט-על לכלל הבניינים
-        </h2>
-        <p style={{ color: 'var(--color-brown-600)', fontSize: '0.95rem', marginTop: 4 }}>
-          מרכז שליטה וניהול עבור {buildings.length} הבניינים המנוהלים בחברת בית ומנוחה
-        </p>
-      </div>
-
-      {/* Top Statistic Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: 16,
-        marginBottom: 28
-      }}>
-        {/* Total Balance */}
-        <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-gold-500)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>יתרה מצרפית בקופות</span>
-            <div style={{ background: 'var(--color-gold-100)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-              <Wallet size={18} color="var(--color-gold-600)" />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-            {totalBalance.toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
-          </div>
-          <span style={{ fontSize: '0.8rem', color: 'var(--color-gold-600)' }}>בכל 15 חשבונות הבנק</span>
-        </div>
-
-        {/* Ingestion Status */}
-        <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-success)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>סטטוס קליטת החודש</span>
-            <div style={{ background: 'var(--color-success-bg)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-              <CheckCircle2 size={18} color="var(--color-success)" />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-            {updatedBuildingsCount} / {buildings.length}
-          </div>
-          <span style={{ fontSize: '0.8rem', color: 'var(--color-success)' }}>בניינים עודכנו בספטמבר</span>
-        </div>
-
-        {/* Outstanding Debts */}
-        <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-danger)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>חובות דיירים פתוחים</span>
-            <div style={{ background: 'var(--color-danger-bg)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-              <AlertCircle size={18} color="var(--color-danger)" />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-            {totalDebtsSum.toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
-          </div>
-          <span style={{ fontSize: '0.8rem', color: 'var(--color-danger)' }}>ב-{totalDebtorsCount} דירות בפיגור</span>
-        </div>
-
-        {/* Open Issues */}
-        <div className="card" style={{ background: '#FFFFFF', borderRight: '4px solid var(--color-brown-600)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-brown-500)' }}>פניות ותקלות פתוחות</span>
-            <div style={{ background: 'var(--color-rose-100)', padding: 7, borderRadius: 'var(--radius-sm)' }}>
-              <MessageSquare size={18} color="var(--color-brown-700)" />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-            {totalOpenIssues}
-          </div>
-          <span style={{ fontSize: '0.8rem', color: 'var(--color-brown-600)' }}>בכלל 15 הבניינים</span>
-        </div>
-      </div>
-
-      {/* Buildings Table Section */}
-      <div className="card" style={{ background: '#FFFFFF', padding: 0, overflow: 'hidden' }}>
-        {/* Table Header & Search */}
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--color-beige-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16
-        }}>
-          <div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-brown-900)' }}>
-              רשימת 15 הבניינים המנוהלים
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-brown-500)' }}>
-              לחץ על שורת בניין לצפייה ממוקדת או בחר פעולה מהירה
-            </p>
-          </div>
-
-          <div style={{ position: 'relative', width: '100%', maxWidth: 320 }}>
-            <Search size={18} color="var(--color-brown-400)" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }} />
-            <input 
-              type="text"
-              placeholder="חיפוש בניין לפי שם או כתובת..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input"
-              style={{ paddingRight: 38 }}
-            />
-          </div>
-        </div>
-
-        {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-            <thead>
-              <tr style={{ background: 'var(--color-cream-subtle)', borderBottom: '1px solid var(--color-beige-border)' }}>
-                <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-brown-700)', fontSize: '0.88rem' }}>שם הבניין וכתובת</th>
-                <th style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-brown-700)', fontSize: '0.88rem' }}>חשבון בנק</th>
-                <th style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-brown-700)', fontSize: '0.88rem' }}>יתרה בקופה</th>
-                <th style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-brown-700)', fontSize: '0.88rem' }}>סטטוס קליטת חודש</th>
-                <th style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-brown-700)', fontSize: '0.88rem' }}>חובות דיירים</th>
-                <th style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-brown-700)', fontSize: '0.88rem' }}>פניות ועד</th>
-                <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-brown-700)', fontSize: '0.88rem', textAlign: 'center' }}>פעולות מהירות</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBuildings.map(b => {
-                const bDebts = (b.apartments || []).reduce((acc, apt) => {
-                  return acc + ((apt.debtMonths ? apt.debtMonths.length : 0) * (apt.monthlyDues || 0));
-                }, 0);
-                const bOpenIssues = (b.issues || []).filter(i => i.status === 'open').length;
-
-                return (
-                  <tr 
-                    key={b.id}
-                    style={{ 
-                      borderBottom: '1px solid var(--color-beige-divider)',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s'
-                    }}
-                    onClick={() => setSelectedBuildingId(b.id)}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-gold-50)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    {/* Name & Address */}
-                    <td style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span 
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            background: b.color?.primary || 'var(--color-gold-500)',
-                            border: '1.5px solid #FFFFFF',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                            display: 'inline-block',
-                            flexShrink: 0
-                          }} 
-                          title={`חותמת צבע: ${b.color?.name || ''}`}
-                        />
-                        <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--color-brown-900)' }}>
-                          {b.name}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--color-brown-500)', paddingRight: 20 }}>
-                        {b.address}
-                      </div>
-                    </td>
-
-                    {/* Bank Account */}
-                    <td style={{ padding: '16px 16px', fontSize: '0.88rem', color: 'var(--color-brown-700)' }}>
-                      {b.bankAccount}
-                    </td>
-
-                    {/* Balance */}
-                    <td style={{ padding: '16px 16px', fontWeight: 800, fontSize: '1rem', color: 'var(--color-brown-900)' }}>
-                      {(b.currentBalance || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 })} ₪
-                    </td>
-
-                    {/* Status Month Updated */}
-                    <td style={{ padding: '16px 16px' }}>
-                      {b.statusMonthUpdated ? (
-                        <span className="badge badge-success">
-                          <CheckCircle2 size={13} />
-                          עודכן החודש
-                        </span>
-                      ) : (
-                        <span className="badge badge-neutral">
-                          <Clock size={13} />
-                          ממתין לקבצים
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Debts */}
-                    <td style={{ padding: '16px 16px' }}>
-                      {bDebts > 0 ? (
-                        <span className="badge badge-danger">
-                          {bDebts.toLocaleString('he-IL')} ₪ חוב
-                        </span>
-                      ) : (
-                        <span className="badge badge-success">
-                          מאופס
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Open Issues */}
-                    <td style={{ padding: '16px 16px' }}>
-                      {bOpenIssues > 0 ? (
-                        <span className="badge badge-gold">
-                          <MessageSquare size={13} />
-                          {bOpenIssues} פניות
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '0.85rem', color: 'var(--color-brown-400)' }}>אין פניות</span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td style={{ padding: '16px 20px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: 'inline-flex', gap: 6 }}>
-                        <button
-                          onClick={() => enterBuilding(b.id, 'financials')}
-                          className="btn btn-primary btn-sm"
-                          title="ניהול כספים ותנועות"
-                        >
-                          <span>ניהול כספים</span>
-                          <ArrowUpRight size={14} />
-                        </button>
-                        <button
-                          onClick={() => enterBuilding(b.id, 'reports')}
-                          className="btn btn-secondary btn-sm"
-                          title="הפקת דוחות"
-                        >
-                          <FileSpreadsheet size={15} />
-                        </button>
-                        <button
-                          onClick={() => enterBuilding(b.id, 'letters')}
-                          className="btn btn-secondary btn-sm"
-                          title="אשף מכתבים"
-                        >
-                          <Send size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
 
     </div>
   );
