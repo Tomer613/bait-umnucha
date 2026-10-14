@@ -75,9 +75,9 @@
   --color-danger-border: #FDA4AF;
 
   /* --------------------------------------------------------------------------
-     2. Typography: Modern Geometric Sans (Heebo + Rubik)
+     2. Typography: Single Unified Hebrew Font (Heebo Only)
      -------------------------------------------------------------------------- */
-  --font-sans: 'Heebo', 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: 'Heebo', sans-serif;
 
   /* --------------------------------------------------------------------------
@@ -108,6 +108,10 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 html, body {

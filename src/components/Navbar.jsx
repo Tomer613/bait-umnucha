@@ -359,6 +359,7 @@ export default function Navbar({ onOpenAddBuilding }) {
 
 function navTabStyle(isActive, activeColor) {
   return {
+    fontFamily: 'inherit',
     display: 'flex',
     alignItems: 'center',
     gap: 8,
@@ -368,11 +369,11 @@ function navTabStyle(isActive, activeColor) {
     border: `1.5px solid ${isActive ? (activeColor?.primary || 'var(--color-gold-500)') : 'var(--color-border-card)'}`,
     borderRadius: 'var(--radius-md)',
     color: isActive ? (activeColor?.primary || 'var(--color-gold-800)') : 'var(--color-slate-700)',
-    fontWeight: isActive ? 800 : 600,
+    fontWeight: 600, // גופן אחיד לחלוטין וללא שינוי משקל בין כפתור פעיל ללא פעיל!
     fontSize: '0.91rem',
     cursor: 'pointer',
     transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
     whiteSpace: 'nowrap',
-    boxShadow: isActive ? '0 3px 10px rgba(197, 155, 39, 0.2)' : 'var(--shadow-xs)'
+    boxShadow: isActive ? '0 2px 8px rgba(0, 0, 0, 0.08)' : 'var(--shadow-xs)'
   };
 }
