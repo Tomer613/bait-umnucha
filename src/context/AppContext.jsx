@@ -42,7 +42,7 @@ const DEFAULT_SETTINGS = {
   noticeHeaderPrefix: 'בס״ד',
   noticeSignoff: 'בברכת ועד הבית וההנהלה,\nבית ומנוחה',
   companyName: 'בית ומנוחה',
-  managerName: 'ישי לוי',
+  managerName: 'ישי כהן',
   phoneList: [
     { id: 'phone-1', number: '052-7623803', label: 'לשיחות בלבד' },
     { id: 'phone-2', number: '055-6704029', label: 'וואטסאפ בלבד' }
@@ -106,8 +106,9 @@ export function AppProvider({ children }) {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (!parsed.managerName) {
-          parsed.managerName = 'ישי לוי';
+        // השם הנכון של המנהל הוא ישי כהן (ברירת המחדל הישנה הייתה שגויה)
+        if (!parsed.managerName || parsed.managerName === 'ישי לוי') {
+          parsed.managerName = 'ישי כהן';
         }
         if (!parsed.phoneCalls) {
           parsed.phoneCalls = '052-7623803';
@@ -520,6 +521,22 @@ export function AppProvider({ children }) {
     setReportPresets(prev => prev.filter(p => p.id !== presetId));
   };
 
+  // עריכת מצב שמור: שם והפרמטרים (מסך ההגדרות)
+  const updatePreset = (presetId, fields) => {
+    setReportPresets(prev => prev.map(p => (p.id === presetId ? {
+      ...p,
+      name: (fields.name || p.name).trim(),
+      reportType: fields.reportType || p.reportType,
+      includeLevies: fields.includeLevies !== undefined ? !!fields.includeLevies : p.includeLevies,
+      entrance: (fields.entrance || 'all').trim() || 'all'
+    } : p)));
+  };
+
+  // מחזיר את מצבי ברירת המחדל שנמחקו (בלי לגעת במצבים שהמנהל שמר)
+  const restoreDefaultPresets = () => {
+    setReportPresets(prev => [...prev, ...DEFAULT_PRESETS.filter(d => !prev.some(p => p.id === d.id))]);
+  };
+
   // הורדת גיבוי נתונים מלא (מענה ישיר לחשש הלקוח)
   const exportFullBackup = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(buildings, null, 2));
@@ -595,6 +612,9 @@ export function AppProvider({ children }) {
     linkIssueExpense,
     savePreset,
     deletePreset,
+    updatePreset,
+    restoreDefaultPresets,
+    defaultPresetIds: DEFAULT_PRESETS.map(p => p.id),
     exportFullBackup,
     importFullBackup,
     systemSettings,

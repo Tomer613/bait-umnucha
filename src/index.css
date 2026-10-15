@@ -1607,3 +1607,5 @@ html[data-density="spacious"] { --space-page: 28px; --space-card: 30px; --space-
 .textarea.is-internal { background: var(--gold-50); border-color: var(--gold-400); }
 .icon-link { background: none; border: 0; padding: 0 0 0 0; margin-inline-start: 6px; color: var(--ink-400); cursor: pointer; vertical-align: middle; }
 .icon-link:hover { color: var(--petrol-600); }
+.preset-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--surface-3); color: var(--ink-600); }
+.preset-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--surface-3); border-radius: var(--radius-md); background: var(--surface); }

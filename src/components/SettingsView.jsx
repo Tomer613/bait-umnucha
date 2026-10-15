@@ -14,6 +14,7 @@ import { buildingBalance } from '../utils/ledger';
 import DisplaySettings from './DisplaySettings';
 import ExpenseCategoriesSettings from './ExpenseCategoriesSettings';
 import IssueSettings from './IssueSettings';
+import ReportPresetsSettings from './ReportPresetsSettings';
 import {
   Building2,
   Sliders,
@@ -32,7 +33,8 @@ import {
   Eye,
   Landmark,
   Tags,
-  MessageSquare
+  MessageSquare,
+  Bookmark
 } from 'lucide-react';
 
 export default function SettingsView({ onOpenAddBuilding }) {
@@ -165,7 +167,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
       noticeHeaderPrefix: systemSettings?.noticeHeaderPrefix || 'בס״ד',
       noticeSignoff: systemSettings?.noticeSignoff || 'בברכת ועד הבית וההנהלה, בית ומנוחה',
       companyName: systemSettings?.companyName || 'בית ומנוחה',
-      managerName: systemSettings?.managerName || 'ישי לוי',
+      managerName: systemSettings?.managerName || 'ישי כהן',
       phoneList: pList,
       emailList: eList,
       companyPhone: systemSettings?.companyPhone || 'שיחות: 052-7623803 | וואטסאפ: 055-6704029',
@@ -342,6 +344,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
           { id: 'preferences', label: 'פרטי החברה ומכתבים', icon: Sliders },
           { id: 'categories', label: 'קטגוריות וקליטת קבצים', icon: Tags },
           { id: 'issues', label: 'פניות', icon: MessageSquare },
+          { id: 'reports', label: 'דוחות', icon: Bookmark },
           { id: 'display', label: 'תצוגה ונוחות קריאה', icon: Eye },
           { id: 'backup', label: 'גיבוי ושחזור', icon: ShieldCheck }
         ]}
@@ -766,7 +769,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
                   type="text"
                   value={prefForm.managerName}
                   onChange={(e) => setPrefForm({ ...prefForm, managerName: e.target.value })}
-                  placeholder="ישי לוי"
+                  placeholder="ישי כהן"
                   className="input"
                   style={{ width: '100%' }}
                 />
@@ -1110,6 +1113,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
       {innerTab === 'categories' && <ExpenseCategoriesSettings />}
 
       {innerTab === 'issues' && <IssueSettings />}
+
+      {innerTab === 'reports' && <ReportPresetsSettings />}
 
       {innerTab === 'display' && <DisplaySettings />}
 

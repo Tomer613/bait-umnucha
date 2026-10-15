@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { exportExpensesMatrixExcel, exportDebtsLedgerExcel, exportMasterSummaryExcel } from '../utils/excelHelper';
-import { Printer, FileSpreadsheet, Share2, Bookmark, X, Save, AlertTriangle } from 'lucide-react';
+import { Printer, FileSpreadsheet, Share2, Bookmark, Save, AlertTriangle } from 'lucide-react';
 import { Segmented, Modal, Field, BuildingName, BuildingAvatar } from './ui';
 import {
   HEBREW_MONTHS,
@@ -26,7 +26,7 @@ import { planTotals, counterpartyText } from '../utils/paymentPlans';
 import { reportMonths, openMonthsIn, reportLogEntry, staleReports, REPORT_LABELS, CHANNEL_LABELS } from '../utils/reportLog';
 
 export default function ReportGenerator() {
-  const { currentBuilding, buildings, setSelectedBuildingId, setActiveTab, reportPresets, savePreset, deletePreset, currentMonth, systemSettings, expenseCategories, logReport } = useApp();
+  const { currentBuilding, buildings, setSelectedBuildingId, setActiveTab, reportPresets, savePreset, currentMonth, systemSettings, expenseCategories, logReport } = useApp();
 
   const isGlobalMode = !currentBuilding;
   const companyName = systemSettings?.companyName || 'בית ומנוחה';
@@ -81,6 +81,9 @@ export default function ReportGenerator() {
     if (isDraft) setPendingProduce({ channel, go });
     else go();
   };
+
+  // ההגדרות הנוכחיות כבר שמורות? (אז אין מה לשמור — הכפתור כבוי ומציין את השם)
+  const matchingPreset = reportPresets.find(p => (p.reportType || 'expenses') === reportType && !!p.includeLevies === includeLevies && (p.entrance || 'all') === entrance) || null;
 
   const updateOption = (setter) => (value) => {
     setter(value);
@@ -150,23 +153,6 @@ export default function ReportGenerator() {
 
       {/* סרגל הגדרות הדוח */}
       <div className="card no-print stack" style={{ gap: 16 }}>
-        {!isGlobalMode && (
-          <div className="row" style={{ gap: 8 }}>
-            <span className="field-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Bookmark size={15} /> מצבים שמורים:
-            </span>
-            {reportPresets.map(p => (
-              <span key={p.id} className={`preset-chip${activePresetId === p.id ? ' is-active' : ''}`}>
-                <button type="button" onClick={() => applyPreset(p)}>{p.name}</button>
-                <button type="button" className="preset-remove" title="מחיקת המצב השמור" onClick={() => deletePreset(p.id)}><X size={12} /></button>
-              </span>
-            ))}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowSavePreset(true)}>
-              <Save size={14} /> שמירת ההגדרות הנוכחיות
-            </button>
-          </div>
-        )}
-
         <div className="row" style={{ justifyContent: 'space-between', gap: 14 }}>
           {isGlobalMode ? (
             <p className="section-sub" style={{ margin: 0 }}>
@@ -219,6 +205,36 @@ export default function ReportGenerator() {
             </button>
           </div>
         </div>
+
+        {/* מצבים שמורים: טעינה ושמירה. ניהול (שינוי שם ומחיקה) — במסך ההגדרות */}
+        {!isGlobalMode && (
+          <div className="preset-bar">
+            <Bookmark size={16} />
+            <label htmlFor="preset-select" className="field-label" style={{ margin: 0 }}>מצב שמור:</label>
+            <select
+              id="preset-select"
+              className="select input-sm"
+              style={{ width: 'auto', minWidth: 220 }}
+              value={activePresetId || matchingPreset?.id || ''}
+              onChange={(e) => { const p = reportPresets.find(x => x.id === e.target.value); if (p) applyPreset(p); else setActivePresetId(null); }}
+            >
+              <option value="">— טעינת הגדרות שמורות —</option>
+              {reportPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowSavePreset(true)}
+              disabled={!!matchingPreset}
+              title={matchingPreset ? `ההגדרות האלה כבר שמורות בשם "${matchingPreset.name}". שנו הגדרה כדי לשמור מצב חדש.` : 'שמירת ההגדרות שבחרתם כמצב חדש'}
+            >
+              <Save size={14} /> {matchingPreset ? 'ההגדרות כבר שמורות' : 'שמירת ההגדרות הנוכחיות'}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" style={{ marginInlineStart: 'auto' }} onClick={() => setActiveTab('settings', 'reports')}>
+              ניהול מצבים שמורים ←
+            </button>
+          </div>
+        )}
       </div>
 
       {/* מסמך הדוח */}
