@@ -34,7 +34,8 @@ export default function Navbar() {
   const taskCount = countTaskItems(computeTasks(currentBuilding ? [currentBuilding] : buildings, {
     currentMonth,
     lowBalance: Number(systemSettings?.lowBalanceThreshold) || DEFAULT_LOW_BALANCE,
-    chronicMonths: Number(systemSettings?.chronicDebtMonths) || DEFAULT_CHRONIC_MONTHS
+    chronicMonths: Number(systemSettings?.chronicDebtMonths) || DEFAULT_CHRONIC_MONTHS,
+    reminderDays: Number(systemSettings?.issueReminderDays ?? 3)
   }));
   const tabCounts = { dashboard: taskCount, issues: openIssues };
 

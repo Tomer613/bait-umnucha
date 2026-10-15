@@ -37,7 +37,8 @@ export default function MasterDashboard() {
   const tasks = computeTasks(scope, {
     currentMonth,
     lowBalance: Number(systemSettings?.lowBalanceThreshold) || DEFAULT_LOW_BALANCE,
-    chronicMonths: Number(systemSettings?.chronicDebtMonths) || DEFAULT_CHRONIC_MONTHS
+    chronicMonths: Number(systemSettings?.chronicDebtMonths) || DEFAULT_CHRONIC_MONTHS,
+    reminderDays: Number(systemSettings?.issueReminderDays ?? 3)
   });
   const total = countTaskItems(tasks);
   // כשמוצג בניין בודד — כמה משימות יש בשאר הבניינים (כדי ששום דבר לא "ייעלם")
@@ -45,7 +46,8 @@ export default function MasterDashboard() {
     ? countTaskItems(computeTasks(buildings, {
         currentMonth,
         lowBalance: Number(systemSettings?.lowBalanceThreshold) || DEFAULT_LOW_BALANCE,
-        chronicMonths: Number(systemSettings?.chronicDebtMonths) || DEFAULT_CHRONIC_MONTHS
+        chronicMonths: Number(systemSettings?.chronicDebtMonths) || DEFAULT_CHRONIC_MONTHS,
+    reminderDays: Number(systemSettings?.issueReminderDays ?? 3)
       })) - total
     : 0;
   const firstName = (systemSettings?.managerName || '').trim().split(/\s+/)[0];
@@ -57,6 +59,7 @@ export default function MasterDashboard() {
       case 'letter': setLetterPreset('debt-2'); setActiveTab('reports', 'letters'); break;
       case 'issue': setActiveTab('issues'); break;
       case 'levy': setActiveTab('finance', 'levies'); break;
+      case 'plans': setActiveTab('finance', 'plans'); break;
       default: setActiveTab('finance');
     }
   };

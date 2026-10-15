@@ -5,11 +5,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { exportExpensesMatrixExcel, exportDebtsLedgerExcel, exportMasterSummaryExcel } from '../utils/excelHelper';
-import { Printer, FileSpreadsheet, Share2, Bookmark, X, Save } from 'lucide-react';
+import { Printer, FileSpreadsheet, Share2, Bookmark, X, Save, AlertTriangle } from 'lucide-react';
 import { Segmented, Modal, Field, BuildingName, BuildingAvatar } from './ui';
 import {
   HEBREW_MONTHS,
   formatILS,
+  formatMonth as formatMonthName,
+  todayISO,
   aptDebt,
   hasDebt,
   buildingDebt,
@@ -17,9 +19,14 @@ import {
   openIssuesCount,
   sumBy
 } from '../utils/format';
+import { buildingBalance, activeTransactions, expenseSum, formatDateIL } from '../utils/ledger';
+import { isCommercial, unitLabel, unitDisplayName } from '../utils/units';
+import { levyTotals } from '../utils/levies';
+import { planTotals, counterpartyText } from '../utils/paymentPlans';
+import { reportMonths, openMonthsIn, reportLogEntry, staleReports, REPORT_LABELS, CHANNEL_LABELS } from '../utils/reportLog';
 
 export default function ReportGenerator() {
-  const { currentBuilding, buildings, setSelectedBuildingId, reportPresets, savePreset, deletePreset, currentMonth, systemSettings, expenseCategories } = useApp();
+  const { currentBuilding, buildings, setSelectedBuildingId, setActiveTab, reportPresets, savePreset, deletePreset, currentMonth, systemSettings, expenseCategories, logReport } = useApp();
 
   const isGlobalMode = !currentBuilding;
   const companyName = systemSettings?.companyName || 'בית ומנוחה';
@@ -32,12 +39,13 @@ export default function ReportGenerator() {
   const [activePresetId, setActivePresetId] = useState(null);
 
   const [showSavePreset, setShowSavePreset] = useState(false);
+  const [pendingProduce, setPendingProduce] = useState(null); // הפקה שממתינה לאישור "טיוטה"
   const [newPresetName, setNewPresetName] = useState('');
 
   // ------------------------------------------------------------------------
   // נתונים
   // ------------------------------------------------------------------------
-  const totalBalance = sumBy(buildings, b => b.currentBalance);
+  const totalBalance = sumBy(buildings, buildingBalance);
   const totalApartments = sumBy(buildings, b => b.apartments?.length || 0);
   const totalExpected = sumBy(buildings, buildingExpectedMonthly);
   const totalDebts = sumBy(buildings, buildingDebt);
@@ -48,12 +56,31 @@ export default function ReportGenerator() {
     : [];
   const years = Array.from(new Set([
     currentMonth.slice(0, 4),
-    ...(currentBuilding?.expenses || []).map(e => (e.month || e.date || '').slice(0, 4)).filter(Boolean)
+    ...activeTransactions(currentBuilding).map(tx => (tx.month || '').slice(0, 4)).filter(Boolean)
   ])).sort().reverse();
 
   const reportApartments = (currentBuilding?.apartments || []).filter(a => entrance === 'all' || a.entrance === entrance);
   const reportDebts = reportApartments.reduce((s, a) => s + aptDebt(a), 0);
   const levies = currentBuilding?.specialLevies || [];
+
+  // דוח שכולל חודש פתוח הוא טיוטה (אפיון 04, סעיף 6.5)
+  const periodMonths = currentBuilding ? reportMonths(reportType, { year: reportYear, currentMonth }) : [];
+  const openMonths = currentBuilding ? openMonthsIn(currentBuilding, periodMonths, currentMonth) : [];
+  const isDraft = openMonths.length > 0;
+  const stale = currentBuilding ? staleReports(currentBuilding) : [];
+  const todayIso = todayISO();
+  const activePlans = (currentBuilding?.paymentPlans || []).filter(p => p.status === 'active');
+
+  // כל הפקה נרשמת ביומן הדוחות; דוח שכולל חודש פתוח — קודם שואלים
+  const produce = (channel, run) => {
+    if (isGlobalMode) { run(); return; }
+    const go = () => {
+      logReport(currentBuilding.id, reportLogEntry(currentBuilding, reportType, { year: reportYear, currentMonth, channel }));
+      run();
+    };
+    if (isDraft) setPendingProduce({ channel, go });
+    else go();
+  };
 
   const updateOption = (setter) => (value) => {
     setter(value);
@@ -92,7 +119,7 @@ export default function ReportGenerator() {
         `⚠️ חובות פתוחים: ${formatILS(totalDebts)}\n` +
         `🔧 פניות פתוחות: ${totalOpenIssues}`
       : `שלום, מצורף דוח ${reportType === 'expenses' ? `הוצאות לשנת ${reportYear}` : 'תקבולים וחובות'} עבור ${currentBuilding.name}.\n` +
-        `יתרת קופה: ${formatILS(currentBuilding.currentBalance)} · חובות פתוחים: ${formatILS(reportDebts)}\n${companyName}`;
+        `יתרת קופה: ${formatILS(buildingBalance(currentBuilding))} · חובות פתוחים: ${formatILS(reportDebts)}\n${companyName}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -108,6 +135,19 @@ export default function ReportGenerator() {
 
   return (
     <>
+      {stale.length > 0 && (
+        <div className="alert alert-warning no-print stack" style={{ gap: 6, alignItems: 'stretch' }}>
+          <span className="row" style={{ gap: 8 }}><AlertTriangle size={18} /> <strong>דוחות שנשלחו והשתנו מאז</strong></span>
+          {stale.map(({ report, changes }) => (
+            <span key={report.id}>
+              {REPORT_LABELS[report.type]} {report.period} ({CHANNEL_LABELS[report.channel] || report.channel}, {formatDateIL(report.at.slice(0, 10))}):
+              {' '}{changes.map(c => `${c.label}${c.expenses ? ` · הוצאות ${c.expenses > 0 ? '+' : '−'}${formatILS(Math.abs(c.expenses))}` : ''}${c.income ? ` · הכנסות ${c.income > 0 ? '+' : '−'}${formatILS(Math.abs(c.income))}` : ''}`).join('; ')}.
+              {' '}כדאי להפיק ולשלוח דוח מעודכן.
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* סרגל הגדרות הדוח */}
       <div className="card no-print stack" style={{ gap: 16 }}>
         {!isGlobalMode && (
@@ -168,13 +208,13 @@ export default function ReportGenerator() {
           )}
 
           <div className="row" style={{ gap: 8 }}>
-            <button onClick={handleWhatsAppShare} className="btn btn-secondary" title="שליחת סיכום בוואטסאפ">
+            <button onClick={() => produce('whatsapp', handleWhatsAppShare)} className="btn btn-secondary" title="שליחת סיכום בוואטסאפ">
               <Share2 size={16} /> וואטסאפ
             </button>
-            <button onClick={() => window.print()} className="btn btn-secondary">
+            <button onClick={() => produce('print', () => window.print())} className="btn btn-secondary">
               <Printer size={16} /> הדפסה
             </button>
-            <button onClick={handleExcelExport} className="btn btn-primary">
+            <button onClick={() => produce('excel', handleExcelExport)} className="btn btn-primary">
               <FileSpreadsheet size={16} /> {isGlobalMode ? 'אקסל מאסטר' : 'ייצוא לאקסל'}
             </button>
           </div>
@@ -182,7 +222,15 @@ export default function ReportGenerator() {
       </div>
 
       {/* מסמך הדוח */}
-      <div className="card report-doc">
+      <div className={`card report-doc${!isGlobalMode && isDraft ? ' is-draft' : ''}`}>
+        {!isGlobalMode && isDraft && (
+          <div className="draft-banner">
+            <AlertTriangle size={16} />
+            {reportType === 'debts'
+              ? `טיוטה – ${formatMonthName(currentMonth)} טרם נסגר. הנתונים עשויים להשתנות.`
+              : `טיוטה – ${openMonths.map(formatMonthName).join(', ')} ${openMonths.length === 1 ? 'טרם נסגר' : 'טרם נסגרו'}. הנתונים שלהם עשויים להשתנות.`}
+          </div>
+        )}
         <div className="letterhead">
           <div>
             <div className="letterhead-name">{companyName}</div>
@@ -222,7 +270,7 @@ export default function ReportGenerator() {
                         {b.hiyuvitCode && <span className="cell-sub">קוד {b.hiyuvitCode}</span>}
                       </td>
                       <td className="col-center num">{b.apartments?.length || 0}</td>
-                      <td className="num cell-strong" style={{ color: (b.currentBalance || 0) < 0 ? 'var(--coral-600)' : undefined }}>{formatILS(b.currentBalance)}</td>
+                      <td className="num cell-strong" style={{ color: buildingBalance(b) < 0 ? 'var(--coral-600)' : undefined }}>{formatILS(buildingBalance(b))}</td>
                       <td className="num">{formatILS(buildingExpectedMonthly(b))}</td>
                       <td className="num">{debts > 0 ? <span className="amount-out">{formatILS(debts)}</span> : <span className="muted">—</span>}</td>
                       <td className="col-center">{issues > 0 ? <span className="badge badge-warning">{issues}</span> : <span className="muted">—</span>}</td>
@@ -259,16 +307,21 @@ export default function ReportGenerator() {
                 </tr>
               </thead>
               <tbody>
-                {reportApartments.map(apt => (
-                  <tr key={apt.id} className={hasDebt(apt) ? 'row-alert' : ''}>
-                    <td className="cell-strong">{apt.aptNum}</td>
-                    <td>{apt.tenantName}</td>
+                {[...reportApartments.filter(a => !isCommercial(a)), ...reportApartments.filter(isCommercial)].map((apt, i, arr) => (
+                  <React.Fragment key={apt.id}>
+                  {isCommercial(apt) && !isCommercial(arr[i - 1]) && (
+                    <tr className="group-row"><td colSpan={7}>יחידות מסחר</td></tr>
+                  )}
+                  <tr className={hasDebt(apt) ? 'row-alert' : ''}>
+                    <td className="cell-strong">{isCommercial(apt) ? unitLabel(apt) : apt.aptNum}</td>
+                    <td>{unitDisplayName(apt)}</td>
                     <td className="ltr">{apt.phone || '—'}</td>
                     <td><span className="badge badge-neutral">{apt.paymentMethod || 'חיובית'}</span></td>
                     <td className="num">{formatILS(apt.monthlyDues)}</td>
                     <td>{hasDebt(apt) ? apt.debtMonths.join(', ') : <span className="badge badge-success">שולם</span>}</td>
                     <td className="num">{hasDebt(apt) ? <span className="amount-out">{formatILS(aptDebt(apt))}</span> : '0 ₪'}</td>
                   </tr>
+                  </React.Fragment>
                 ))}
               </tbody>
               <tfoot>
@@ -281,6 +334,32 @@ export default function ReportGenerator() {
           </div>
         )}
 
+        {!isGlobalMode && reportType === 'debts' && activePlans.length > 0 && (
+          <div className="stack" style={{ marginTop: 28 }}>
+            <h3 className="section-title">פריסות חוב</h3>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr><th>כיוון</th><th>צד שני</th><th>על מה</th><th className="col-center">שולמו</th><th className="num">נותר</th><th>תשלום הבא</th></tr></thead>
+                <tbody>
+                  {activePlans.map(p => {
+                    const t = planTotals(p, todayIso);
+                    return (
+                      <tr key={p.id}>
+                        <td>{p.direction === 'payable' ? 'התחייבות של הבניין' : 'חוב בהסדר לבניין'}</td>
+                        <td className="cell-strong">{counterpartyText(p, currentBuilding)}</td>
+                        <td>{p.purpose}</td>
+                        <td className="col-center num">{t.paidCount} / {t.count}</td>
+                        <td className={`num ${p.direction === 'payable' ? 'amount-out' : 'amount-in'}`}>{formatILS(t.remaining)}</td>
+                        <td>{t.next ? `${formatDateIL(t.next.dueDate)} · ${formatILS(t.next.amount)}` : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {!isGlobalMode && includeLevies && (
           <div className="stack" style={{ marginTop: 28 }}>
             <h3 className="section-title">קופות גבייה מיוחדות</h3>
@@ -290,21 +369,19 @@ export default function ReportGenerator() {
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>
-                    <tr><th>פרויקט</th><th>נפתח</th><th className="num">עלות</th><th className="num">לדירה</th><th className="col-center">שילמו</th><th className="num">נגבה</th><th className="num">יתרה לגבייה</th></tr>
+                    <tr><th>גבייה</th><th>בעבור</th><th>אופן</th><th className="num">יעד</th><th className="num">נגבה</th><th className="num">יתרה לגבייה</th></tr>
                   </thead>
                   <tbody>
-                    {levies.map(l => {
-                      const paid = l.paidApartmentIds?.length || 0;
-                      const collected = paid * (l.amountPerApt || 0);
+                    {levies.filter(l => l.status !== 'cancelled').map(l => {
+                      const t = levyTotals(l, currentBuilding, currentMonth);
                       return (
                         <tr key={l.id}>
-                          <td className="cell-strong">{l.title}</td>
-                          <td>{l.createdAt}</td>
-                          <td className="num">{formatILS(l.totalAmount)}</td>
-                          <td className="num">{formatILS(l.amountPerApt)}</td>
-                          <td className="col-center num">{paid} / {currentBuilding.apartments?.length || 0}</td>
-                          <td className="num amount-in">{formatILS(collected)}</td>
-                          <td className="num amount-out">{formatILS(Math.max((l.totalAmount || 0) - collected, 0))}</td>
+                          <td className="cell-strong">{l.name}</td>
+                          <td>{l.purpose}</td>
+                          <td>{l.mode === 'monthly' ? `${formatILS(l.amountPerApt)} לחודש${l.installments ? ` × ${l.installments}` : ''}` : `${formatILS(l.amountPerApt)} לדירה`}{l.includesCommercial ? ' · כולל מסחר' : ''}</td>
+                          <td className="num">{formatILS(t.target)}</td>
+                          <td className="num amount-in">{formatILS(t.collected)}</td>
+                          <td className="num amount-out">{formatILS(Math.max(t.target - t.collected, 0))}</td>
                         </tr>
                       );
                     })}
@@ -320,6 +397,19 @@ export default function ReportGenerator() {
           <span>חתימת מנהל: __________________</span>
         </div>
       </div>
+
+      <Modal
+        isOpen={!!pendingProduce}
+        onClose={() => setPendingProduce(null)}
+        size="sm"
+        title="הדוח כולל חודש פתוח"
+        subtitle={`${openMonths.map(formatMonthName).join(', ')} עדיין ${openMonths.length === 1 ? 'פתוח' : 'פתוחים'}. הדוח יסומן כטיוטה.`}
+      >
+        <div className="modal-actions">
+          <button type="button" className="btn btn-primary" onClick={() => { const p = pendingProduce; setPendingProduce(null); p.go(); }}>להפיק כטיוטה</button>
+          <button type="button" className="btn btn-secondary" onClick={() => { setPendingProduce(null); setActiveTab('finance'); }}>לסגירת החודש</button>
+        </div>
+      </Modal>
 
       <Modal isOpen={showSavePreset} onClose={() => setShowSavePreset(false)} size="sm" title="שמירת מצב דוח" subtitle="ההגדרות הנוכחיות יישמרו להפקה מהירה בלחיצה אחת.">
         <form onSubmit={handleSavePreset} className="form-stack">
@@ -344,9 +434,9 @@ export default function ReportGenerator() {
 // קטגוריות הדוח: הרשימה מההגדרות, ובנוסף כל קטגוריה שיש בה הוצאות בשנה הזו
 // (למשל קטגוריה שנמחקה מהרשימה) — כדי שאף סכום לא ייעלם מהדוח
 function reportCategories(building, year, listed) {
-  const used = (building?.expenses || [])
-    .filter(e => e.amount > 0 && (e.month || '').startsWith(year))
-    .map(e => e.category);
+  const used = activeTransactions(building)
+    .filter(tx => tx.direction === 'out' && (tx.month || '').startsWith(year))
+    .map(tx => tx.category);
   const extra = Array.from(new Set(used)).filter(c => c && !listed.includes(c));
   return [...listed, ...extra];
 }
@@ -355,9 +445,7 @@ function ExpensesMatrix({ building, year, categories }) {
   const sums = categories.map(cat => {
     const months = HEBREW_MONTHS.map((_, mIdx) => {
       const key = `${year}-${String(mIdx + 1).padStart(2, '0')}`;
-      return (building.expenses || [])
-        .filter(exp => exp.month === key && exp.category === cat && exp.amount > 0)
-        .reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
+      return expenseSum(building, { month: key, category: cat });
     });
     return { cat, months, total: months.reduce((a, b) => a + b, 0) };
   });

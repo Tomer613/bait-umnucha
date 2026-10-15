@@ -57,16 +57,8 @@ export function sumBy(buildings, fn) {
   return (buildings || []).reduce((sum, b) => sum + (fn(b) || 0), 0);
 }
 
-// תנועות: סכום חיובי = הוצאה, סכום שלילי = הכנסה
-export function splitInOut(transactions) {
-  let income = 0;
-  let expenses = 0;
-  (transactions || []).forEach(tx => {
-    if (tx.amount < 0) income += Math.abs(tx.amount);
-    else expenses += tx.amount;
-  });
-  return { income, expenses };
-}
+// הכנסות / הוצאות של רשימת תנועות — מספר התנועות (אפיון 04)
+export { splitInOut } from './ledger';
 
 // הוספת פרטי בניין לכל פריט ברשימה (לתצוגות "כלל הבניינים")
 export function withBuilding(building, items) {

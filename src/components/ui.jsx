@@ -125,7 +125,7 @@ export function Modal({ isOpen, onClose, title, subtitle, children, size }) {
   if (!isOpen) return null;
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className={`modal-content${size === 'sm' ? ' modal-sm' : ''}`} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-content${size === 'sm' ? ' modal-sm' : size === 'lg' ? ' modal-lg' : ''}`} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
             <h3 className="modal-title">{title}</h3>

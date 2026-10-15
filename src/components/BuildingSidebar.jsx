@@ -10,6 +10,7 @@ import { Search, X, Check, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import { BuildingAvatar, AllBuildingsAvatar } from './ui';
 import { buildingDebt, formatILS, sumBy } from '../utils/format';
 import { isMonthClosed } from '../utils/monthClose';
+import { buildingBalance } from '../utils/ledger';
 
 const COLLAPSE_KEY = 'bait_umnucha_sidebar_collapsed';
 
@@ -144,7 +145,7 @@ export default function BuildingSidebar() {
                 <BuildingAvatar name={b.name} color={b.color} />
                 <span className="sb-text">
                   <span className="sb-name">{b.name}</span>
-                  <span className="sb-meta">{b.apartments?.length || 0} דירות · {formatILS(b.currentBalance)}</span>
+                  <span className="sb-meta">{b.apartments?.length || 0} דירות · {formatILS(buildingBalance(b))}</span>
                 </span>
                 <span className="sb-marks">
                   {debt > 0 && <span className="sb-mark sb-mark--debt" title={`חוב פתוח: ${formatILS(debt)}`} />}

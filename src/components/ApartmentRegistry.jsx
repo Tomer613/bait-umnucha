@@ -9,12 +9,18 @@ import {
   readTenantExcelFile
 } from '../utils/excelHelper';
 import { PAYMENT_METHODS, OCCUPANT_TYPES } from '../data/initialData';
-import { Download, Upload, UserPlus, Edit3, Trash2, Repeat, Search, Users } from 'lucide-react';
+import { Download, Upload, UserPlus, Edit3, Trash2, Repeat, Search, Users, Store, Package, CalendarClock } from 'lucide-react';
 import { PageHeader, Segmented, Modal, Field, EmptyState, BuildingName, FlashMessage, useFlash } from './ui';
 import ConfirmModal from './ConfirmModal';
 import { formatILS, aptDebt, hasDebt, withBuilding, todayISO, monthName, requestBuildingPick } from '../utils/format';
+import { isCommercial, unitLabel, unitDisplayName, unitsSummary, COMMERCIAL_LABELS } from '../utils/units';
 
-const emptyAptForm = (defaultDues) => ({
+const emptyAptForm = (defaultDues, unitType = 'residential') => ({
+  unitType,
+  commercialLabel: 'shop',
+  businessName: '',
+  bankPayerNames: '',
+  hiyuvitClientNumber: '',
   aptNum: '',
   floor: '',
   entrance: '',
@@ -37,7 +43,9 @@ export default function ApartmentRegistry() {
     handleTenantTurnover,
     addApartment,
     updateApartment,
-    deleteApartment
+    deleteApartment,
+    setPlanDraft,
+    setActiveTab
   } = useApp();
 
   const isGlobalMode = !currentBuilding;
@@ -47,6 +55,7 @@ export default function ApartmentRegistry() {
   // חיפוש וסינון
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDebt, setFilterDebt] = useState('all'); // all | debt_only
+  const [filterType, setFilterType] = useState('all'); // all | residential | commercial
 
   // הוספה / עריכה של דירה
   const [aptModal, setAptModal] = useState(null); // { mode: 'add'|'edit', buildingId, aptId? }
@@ -69,10 +78,13 @@ export default function ApartmentRegistry() {
   const debtTotal = debtors.reduce((sum, a) => sum + aptDebt(a), 0);
 
   const q = searchTerm.trim().toLowerCase();
+  const hasCommercial = apartments.some(isCommercial);
   const filteredApartments = apartments.filter(apt => {
     if (filterDebt === 'debt_only' && !hasDebt(apt)) return false;
+    if (filterType === 'residential' && isCommercial(apt)) return false;
+    if (filterType === 'commercial' && !isCommercial(apt)) return false;
     if (!q) return true;
-    return [apt.tenantName, apt.buildingName, apt.phone, apt.email, String(apt.aptNum)]
+    return [apt.tenantName, apt.businessName, apt.buildingName, apt.phone, apt.email, String(apt.aptNum)]
       .some(v => (v || '').toLowerCase().includes(q));
   });
 
@@ -102,17 +114,18 @@ export default function ApartmentRegistry() {
     }
   };
 
-  const openAdd = () => {
+  // יחידת מסחר מתחילה מהסכום של הדירות, והשדה פתוח לעריכה מיד (אפיון 06, סעיף 2.3)
+  const openAdd = (unitType = 'residential') => {
     if (!currentBuilding) {
-      requestBuildingPick('לאיזה בניין להוסיף דירה? בחרו בניין');
+      requestBuildingPick(unitType === 'commercial' ? 'לאיזה בניין להוסיף יחידת מסחר? בחרו בניין' : 'לאיזה בניין להוסיף דירה? בחרו בניין');
       return;
     }
-    setAptForm(emptyAptForm(defaultDues));
+    setAptForm(emptyAptForm(defaultDues, unitType));
     setAptModal({ mode: 'add', buildingId: currentBuilding.id });
   };
 
   const openEdit = (apt) => {
-    setAptForm({ ...emptyAptForm(defaultDues), ...apt });
+    setAptForm({ ...emptyAptForm(defaultDues), ...apt, bankPayerNames: (apt.bankPayerNames || []).join(', ') });
     setAptModal({ mode: 'edit', buildingId: apt.buildingId, aptId: apt.id });
   };
 
@@ -121,12 +134,13 @@ export default function ApartmentRegistry() {
     if (!aptModal?.buildingId || !aptForm.aptNum) return;
     const bName = buildings.find(b => b.id === aptModal.buildingId)?.name;
     const { buildingId: _b, buildingName: _n, buildingColor: _c, ...data } = aptForm;
+    const label = unitLabel(aptForm);
     if (aptModal.mode === 'add') {
       addApartment(aptModal.buildingId, data);
-      showFlash(`דירה ${aptForm.aptNum} נוספה לבניין ${bName}.`);
+      showFlash(`${label} נוספה לבניין ${bName}.`);
     } else {
       updateApartment(aptModal.buildingId, aptModal.aptId, data);
-      showFlash(`פרטי דירה ${aptForm.aptNum} עודכנו.`);
+      showFlash(`הפרטים של ${label} עודכנו.`);
     }
     setAptModal(null);
   };
@@ -156,7 +170,7 @@ export default function ApartmentRegistry() {
     <div className="page">
       <PageHeader
         title="דירות ודיירים"
-        subtitle={isGlobalMode ? `${apartments.length} דירות ב-${buildings.length} בניינים` : `${apartments.length} דירות`}
+        subtitle={isGlobalMode ? `${unitsSummary(apartments)} ב-${buildings.length} בניינים` : unitsSummary(apartments)}
         actions={
           <>
             <button
@@ -170,7 +184,10 @@ export default function ApartmentRegistry() {
               <Upload size={16} /> ייבוא מאקסל
               <input type="file" accept=".xlsx, .xls, .csv" hidden onChange={handleExcelUpload} />
             </label>
-            <button className="btn btn-primary" onClick={openAdd}>
+            <button className="btn btn-secondary" onClick={() => openAdd('commercial')}>
+              <Store size={16} /> הוספת מסחר
+            </button>
+            <button className="btn btn-primary" onClick={() => openAdd('residential')}>
               <UserPlus size={16} /> הוספת דירה
             </button>
           </>
@@ -187,10 +204,21 @@ export default function ApartmentRegistry() {
               value={filterDebt}
               onChange={setFilterDebt}
               options={[
-                { id: 'all', label: 'כל הדירות', count: apartments.length },
+                { id: 'all', label: 'כל היחידות', count: apartments.length },
                 { id: 'debt_only', label: 'בחוב', count: debtors.length }
               ]}
             />
+            {hasCommercial && (
+              <Segmented
+                value={filterType}
+                onChange={setFilterType}
+                options={[
+                  { id: 'all', label: 'הכול' },
+                  { id: 'residential', label: 'דירות' },
+                  { id: 'commercial', label: 'מסחר' }
+                ]}
+              />
+            )}
             {debtTotal > 0 && <span className="badge badge-danger">סך חובות {formatILS(debtTotal)}</span>}
           </div>
           <div className="search-box">
@@ -217,8 +245,8 @@ export default function ApartmentRegistry() {
               <thead>
                 <tr>
                   {isGlobalMode && <th>בניין</th>}
-                  <th>דירה</th>
-                  <th>דייר</th>
+                  <th>יחידה</th>
+                  <th>דייר / עסק</th>
                   <th>טלפון</th>
                   <th>אימייל</th>
                   <th className="num">דמי ועד</th>
@@ -236,10 +264,18 @@ export default function ApartmentRegistry() {
                       {isGlobalMode && (
                         <td><BuildingName name={apt.buildingName} color={apt.buildingColor} onClick={() => setSelectedBuildingId(apt.buildingId)} /></td>
                       )}
-                      <td className="cell-strong">{apt.aptNum}{location && <span className="cell-sub">{location}</span>}</td>
+                      <td className="cell-strong">
+                        {isCommercial(apt) ? (
+                          <span className="unit-tag">
+                            {apt.commercialLabel === 'storage' ? <Package size={14} /> : <Store size={14} />}
+                            {unitLabel(apt)}
+                          </span>
+                        ) : apt.aptNum}
+                        {location && <span className="cell-sub">{location}</span>}
+                      </td>
                       <td>
-                        <span className="cell-strong">{apt.tenantName || 'לא הוזן'}</span>
-                        <span className="cell-sub">{apt.occupantType || 'שוכר'}</span>
+                        <span className="cell-strong">{unitDisplayName(apt) || 'לא הוזן'}</span>
+                        <span className="cell-sub">{isCommercial(apt) ? (apt.tenantName ? `איש קשר: ${apt.tenantName}` : COMMERCIAL_LABELS[apt.commercialLabel] || 'מסחר') : (apt.occupantType || 'שוכר')}</span>
                       </td>
                       <td>{apt.phone ? <a href={`tel:${apt.phone}`} className="ltr" style={{ textDecoration: 'none', fontWeight: 500 }}>{apt.phone}</a> : <span className="muted">—</span>}</td>
                       <td className="muted" style={{ fontSize: '0.87rem' }}>{apt.email || '—'}</td>
@@ -259,6 +295,19 @@ export default function ApartmentRegistry() {
                         <div>
                           <button className="btn btn-secondary btn-sm btn-icon" title="עריכת פרטי הדירה" onClick={() => openEdit(apt)}><Edit3 size={14} /></button>
                           <button className="btn btn-secondary btn-sm btn-icon" title="החלפת דייר" onClick={() => openTurnover(apt)}><Repeat size={14} /></button>
+                          {debt && (
+                            <button
+                              className="btn btn-secondary btn-sm btn-icon"
+                              title="הסדר חוב בתשלומים"
+                              onClick={() => {
+                                setPlanDraft({ buildingId: apt.buildingId, direction: 'receivable', prefill: { unitId: apt.id, debtMonths: apt.debtMonths, totalAmount: aptDebt(apt), purpose: `חוב דמי ועד ${apt.debtMonths.map(monthName).join(', ')}` } });
+                                setSelectedBuildingId(apt.buildingId);
+                                setActiveTab('finance', 'plans');
+                              }}
+                            >
+                              <CalendarClock size={14} />
+                            </button>
+                          )}
                           <button className="btn btn-danger btn-sm btn-icon" title="מחיקת הדירה" onClick={() => setDeleteTarget(apt)}><Trash2 size={14} /></button>
                         </div>
                       </td>
@@ -275,13 +324,23 @@ export default function ApartmentRegistry() {
       <Modal
         isOpen={!!aptModal}
         onClose={() => setAptModal(null)}
-        title={aptModal?.mode === 'edit' ? `עריכת דירה ${aptForm.aptNum}` : 'הוספת דירה'}
+        title={aptModal?.mode === 'edit' ? `עריכת ${unitLabel(aptForm)}` : isCommercial(aptForm) ? 'הוספת מסחר' : 'הוספת דירה'}
         subtitle={(() => { const mb = buildings.find(b => b.id === aptModal?.buildingId); return mb ? <BuildingName name={mb.name} color={mb.color} /> : null; })()}
       >
         <form onSubmit={submitApt} className="form-stack">
+          {isCommercial(aptForm) && (
+            <div className="field">
+              <span className="field-label">סוג</span>
+              <Segmented
+                value={aptForm.commercialLabel}
+                onChange={(v) => setAptForm(prev => ({ ...prev, commercialLabel: v }))}
+                options={[{ id: 'shop', label: 'חנות' }, { id: 'storage', label: 'מחסן' }]}
+              />
+            </div>
+          )}
           <div className="field-row">
-            <Field label="מספר דירה *">
-              <input type="text" required value={aptForm.aptNum} onChange={setField('aptNum')} className="input" placeholder="12" />
+            <Field label={isCommercial(aptForm) ? 'מספר / שם יחידה *' : 'מספר דירה *'}>
+              <input type="text" required value={aptForm.aptNum} onChange={setField('aptNum')} className="input" placeholder={isCommercial(aptForm) ? '2' : '12'} />
             </Field>
             <Field label="כניסה">
               <input type="text" value={aptForm.entrance} onChange={setField('entrance')} className="input" placeholder="א" />
@@ -290,16 +349,27 @@ export default function ApartmentRegistry() {
               <input type="text" value={aptForm.floor} onChange={setField('floor')} className="input" placeholder="3" />
             </Field>
           </div>
-          <div className="field-row">
-            <Field label="שם הדייר">
-              <input type="text" value={aptForm.tenantName} onChange={setField('tenantName')} className="input" placeholder="שם מלא או משפחה" />
-            </Field>
-            <Field label="סוג מגורים">
-              <select value={aptForm.occupantType} onChange={setField('occupantType')} className="select">
-                {OCCUPANT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-          </div>
+          {isCommercial(aptForm) ? (
+            <div className="field-row">
+              <Field label="שם העסק / המחזיק">
+                <input type="text" value={aptForm.businessName} onChange={setField('businessName')} className="input" placeholder="למשל: פאפאיה אופנה בע״מ" />
+              </Field>
+              <Field label="איש קשר">
+                <input type="text" value={aptForm.tenantName} onChange={setField('tenantName')} className="input" placeholder="בעל העסק או המנהל" />
+              </Field>
+            </div>
+          ) : (
+            <div className="field-row">
+              <Field label="שם הדייר">
+                <input type="text" value={aptForm.tenantName} onChange={setField('tenantName')} className="input" placeholder="שם מלא או משפחה" />
+              </Field>
+              <Field label="סוג מגורים">
+                <select value={aptForm.occupantType} onChange={setField('occupantType')} className="select">
+                  {OCCUPANT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </Field>
+            </div>
+          )}
           <div className="field-row">
             <Field label="טלפון">
               <input type="tel" value={aptForm.phone} onChange={setField('phone')} className="input ltr" placeholder="050-0000000" />
@@ -309,8 +379,8 @@ export default function ApartmentRegistry() {
             </Field>
           </div>
           <div className="field-row">
-            <Field label="דמי ועד חודשיים (₪) *">
-              <input type="number" required min="0" value={aptForm.monthlyDues} onChange={setField('monthlyDues')} className="input" />
+            <Field label="דמי ועד חודשיים (₪) *" hint={isCommercial(aptForm) && aptModal?.mode === 'add' ? 'מתחיל מהסכום של הדירות. אפשר לשנות.' : undefined}>
+              <input type="number" required min="0" step="0.01" value={aptForm.monthlyDues} onChange={setField('monthlyDues')} className="input" />
             </Field>
             <Field label="אופן תשלום">
               <select value={aptForm.paymentMethod} onChange={setField('paymentMethod')} className="select">
@@ -318,8 +388,16 @@ export default function ApartmentRegistry() {
               </select>
             </Field>
           </div>
+          <div className="field-row">
+            <Field label="שם המעביר בדו״ח הבנק" hint="העברה שהתיאור שלה מכיל את השם תשויך ליחידה אוטומטית. כמה שמות — מופרדים בפסיק.">
+              <input type="text" value={aptForm.bankPayerNames} onChange={setField('bankPayerNames')} className="input" placeholder={isCommercial(aptForm) ? 'למשל: פאפאיה אופנה' : 'למשל: קרפמן אליעזר'} />
+            </Field>
+            <Field label="מספר לקוח בחיובית">
+              <input type="text" value={aptForm.hiyuvitClientNumber} onChange={setField('hiyuvitClientNumber')} className="input ltr" placeholder="6460038" />
+            </Field>
+          </div>
           <div className="modal-actions">
-            <button type="submit" className="btn btn-primary">{aptModal?.mode === 'edit' ? 'שמירת השינויים' : 'הוספת הדירה'}</button>
+            <button type="submit" className="btn btn-primary">{aptModal?.mode === 'edit' ? 'שמירת השינויים' : isCommercial(aptForm) ? 'הוספת היחידה' : 'הוספת הדירה'}</button>
             <button type="button" className="btn btn-secondary" onClick={() => setAptModal(null)}>ביטול</button>
           </div>
         </form>

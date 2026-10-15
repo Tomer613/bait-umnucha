@@ -4,6 +4,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_BUILDINGS, BUILDING_COLOR_PALETTE, getBuildingColor, EXPENSE_CATEGORIES, OTHER_CATEGORY } from '../data/initialData';
 import { migrateMonthClose } from '../utils/monthClose';
+import { migrateBuildingLedger } from '../utils/ledger';
+import * as ops from '../utils/ledgerOps';
+import { unitFields } from '../utils/units';
+import * as lv from '../utils/levies';
+import * as pp from '../utils/paymentPlans';
+import * as iss from '../utils/issues';
+import { DEFAULT_CATEGORY_RULES, DEFAULT_HIYUVIT_DEPOSIT_NAMES } from '../utils/importPlan';
 
 const INITIAL_MONTH = '2026-09';
 
@@ -53,8 +60,30 @@ const DEFAULT_SETTINGS = {
   enableIssuesModule: true,
   expenseCategories: EXPENSE_CATEGORIES,
   lowBalanceThreshold: 7000, // משימות: יתרה נמוכה
-  chronicDebtMonths: 3       // משימות: חוב מתמשך (חודשים)
+  chronicDebtMonths: 3,      // משימות: חוב מתמשך (חודשים)
+  categoryRules: DEFAULT_CATEGORY_RULES,             // כללי סיווג אוטומטי בקליטת עו"ש
+  hiyuvitDepositNames: DEFAULT_HIYUVIT_DEPOSIT_NAMES, // שמות הפקדת חיובית בעו"ש
+  levyDetectThreshold: 0.3,   // סף לזיהוי גבייה מיוחדת בחיובית (חלק מהלקוחות)
+  levyConfirm: 'first_time',  // אישור שיוך לגבייה קיימת: first_time | always
+  issueCategories: iss.DEFAULT_ISSUE_CATEGORIES, // קטגוריות פניות
+  issueReminderDays: 3,       // תזכורת על פנייה שלא נענתה (0 = כבוי)
+  managerBankNames: ['כהן ישי'] // איך העברה למנהל מופיעה בעו"ש (חשבון מנהל, אפיון 04 סעיף 7.5)
 };
+
+// טעינת בניין שמור: מעבר לסגירת חודש ולספר התנועות (פעם אחת), וצבע
+function loadBuilding(b, idx) {
+  const migrated = migrateBuildingLedger(migrateMonthClose({ ...b, color: getBuildingColor(b, idx) }, INITIAL_MONTH));
+  return {
+    ...migrated,
+    specialLevies: (migrated.specialLevies || []).map(l => lv.migrateLevy(l, migrated)),
+    issues: (migrated.issues || []).map(iss.migrateIssue)
+  };
+}
+
+// טעינת כל הבניינים: מעבר מבנה + מספור רץ לפניות ישנות
+function loadAll(list) {
+  return iss.numberIssues(list.map(loadBuilding));
+}
 
 export function AppProvider({ children }) {
   // טעינה ראשונית מ-LocalStorage או מנתוני הבסיס
@@ -63,15 +92,12 @@ export function AppProvider({ children }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return parsed.map((b, idx) => migrateMonthClose({
-          ...b,
-          color: getBuildingColor(b, idx)
-        }, INITIAL_MONTH));
+        return loadAll(parsed);
       }
     } catch (e) {
       console.error("Failed to load state from localStorage:", e);
     }
-    return INITIAL_BUILDINGS.map(b => migrateMonthClose(b, INITIAL_MONTH));
+    return loadAll(INITIAL_BUILDINGS);
   });
 
   // הגדרות מערכת ואתר מרוכזות
@@ -209,7 +235,10 @@ export function AppProvider({ children }) {
       address: buildingData.address || '',
       bankAccount: buildingData.bankAccount || '',
       hiyuvitCode: buildingData.hiyuvitCode || '',
-      currentBalance: parseFloat(buildingData.initialBalance) || 0,
+      openingBalance: {
+        bank: { amount: parseFloat(buildingData.initialBalance) || 0, date: null },
+        cash: { amount: 0, date: null }
+      },
       color: assignedColor,
       settings: {
         issuesEnabled: true,
@@ -217,7 +246,10 @@ export function AppProvider({ children }) {
         recurringExpenses: []
       },
       apartments: [],
-      expenses: [],
+      transactions: [],
+      importBatches: [],
+      auditLog: [],
+      reportLog: [],
       specialLevies: [],
       issues: []
     };
@@ -239,11 +271,11 @@ export function AppProvider({ children }) {
     }));
   };
 
-  // עריכת פרטי בניין כלליים וצבע (יתרת קופה מוגנת ואינה ניתנת לעריכה ידנית)
+  // עריכת פרטי בניין כלליים וצבע (היתרה מחושבת מהתנועות ואינה ניתנת לעריכה כאן)
   const updateBuilding = (buildingId, updatedData) => {
     setBuildings(prev => prev.map(b => {
       if (b.id !== buildingId) return b;
-      const { currentBalance: _, ...safeData } = updatedData;
+      const { currentBalance: _c, transactions: _t, openingBalance: _o, ...safeData } = updatedData;
       return {
         ...b,
         ...safeData,
@@ -267,7 +299,7 @@ export function AppProvider({ children }) {
       aptNum: aptData.aptNum || '1',
       floor: aptData.floor || '',
       entrance: aptData.entrance || '',
-      tenantName: aptData.tenantName || 'דייר חדש',
+      tenantName: aptData.tenantName || (aptData.unitType === 'commercial' ? '' : 'דייר חדש'),
       occupantType: aptData.occupantType || 'שוכר',
       phone: aptData.phone || '',
       email: aptData.email || '',
@@ -275,7 +307,8 @@ export function AppProvider({ children }) {
       paymentMethod: aptData.paymentMethod || 'חיובית',
       parking: aptData.parking || '',
       notes: aptData.notes || '',
-      debtMonths: []
+      debtMonths: [],
+      ...unitFields(aptData)
     };
     setBuildings(prev => prev.map(b => {
       if (b.id !== buildingId) return b;
@@ -293,9 +326,10 @@ export function AppProvider({ children }) {
       if (b.id !== buildingId) return b;
       const updatedApts = (b.apartments || []).map(apt => {
         if (apt.id !== aptId) return apt;
+        const merged = { ...apt, ...updatedData };
         return {
-          ...apt,
-          ...updatedData,
+          ...merged,
+          ...unitFields(merged),
           monthlyDues: updatedData.monthlyDues !== undefined ? parseFloat(updatedData.monthlyDues) || 0 : apt.monthlyDues
         };
       });
@@ -334,153 +368,28 @@ export function AppProvider({ children }) {
     setSystemSettings(prev => ({ ...prev, ...newSettings }));
   };
 
-  // הכנסה במזומן מדייר (נשמרת בקופה) עם סגירת חודשי חוב
-  const recordManualReceipt = (buildingId, aptId, amount, paidMonths = [], notes = '', paymentType = 'מזומן') => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
+  // ------------------------------------------------------------------------
+  // ספר תנועות (אפיון 04) — הלוגיקה עצמה ב-utils/ledgerOps
+  // ------------------------------------------------------------------------
+  const updateB = (buildingId, fn) => setBuildings(prev => prev.map(b => (b.id === buildingId ? fn(b) : b)));
 
-      const numAmount = parseFloat(amount) || 0;
-      const payer = (b.apartments || []).find(apt => apt.id === aptId);
-      const aptLabel = payer ? `דירה ${payer.aptNum} (${payer.tenantName})` : 'דייר';
-      const updatedApartments = (b.apartments || []).map(apt => {
-        if (apt.id !== aptId) return apt;
-        // הסרת החודשים ששולמו מרשימת החוב
-        const updatedDebtMonths = (apt.debtMonths || []).filter(m => !paidMonths.includes(m));
-        return {
-          ...apt,
-          debtMonths: updatedDebtMonths
-        };
-      });
+  const recordManualReceipt = (buildingId, aptId, amount, paidMonths = [], notes = '', paymentType = 'מזומן', { date = '', reason = '' } = {}) =>
+    updateB(buildingId, b => ops.recordReceipt(b, { aptId, amount, paidMonths, notes, paymentType, date, reason }));
 
-      // הוספת תנועה ליתרת הבניין
-      const newBalance = (b.currentBalance || 0) + numAmount;
+  const recordCashExpense = (buildingId, category, amount, description, date = '', { reason = '', paidBy = 'cash' } = {}) =>
+    updateB(buildingId, b => ops.recordExpense(b, { category, amount, description, date, reason, paidBy }));
 
-      return {
-        ...b,
-        currentBalance: newBalance,
-        apartments: updatedApartments,
-        expenses: [
-          {
-            id: `rec-in-${Date.now()}`,
-            date: new Date().toISOString().slice(0, 10),
-            month: currentMonth,
-            category: "הכנסה במזומן",
-            amount: -numAmount, // סכום שלילי להוצאה = הכנסה
-            description: `${aptLabel} שילם/ה במזומן (חודשים: ${paidMonths.join(', ') || 'שוטף'})${notes ? ' - ' + notes : ''}`,
-            source: paymentType
-          },
-          ...(b.expenses || [])
-        ]
-      };
-    }));
-  };
-
-  // הזנת הוצאת מזומן ידנית
-  const recordCashExpense = (buildingId, category, amount, description, date = '') => {
-    const numAmount = parseFloat(amount) || 0;
-    const expDate = date || new Date().toISOString().slice(0, 10);
-    const expMonth = expDate.slice(0, 7);
-
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      return {
-        ...b,
-        currentBalance: (b.currentBalance || 0) - numAmount,
-        expenses: [
-          {
-            id: `cash-out-${Date.now()}`,
-            date: expDate,
-            month: expMonth,
-            category: category || "תחזוקה שוטפת והוצאות חריגות",
-            amount: numAmount,
-            description: description || "הוצאה ידנית במזומן",
-            source: "מזומן"
-          },
-          ...(b.expenses || [])
-        ]
-      };
-    }));
-  };
-
-  // סגירת חודש: סימון / ביטול סימון של שלב בצ'קליסט
-  const setCloseStep = (buildingId, month, stepId, value) => {
-    setBuildings(prev => prev.map(b => b.id !== buildingId ? b : { ...b, monthClose: closeStepIn(b, month, stepId, value) }));
-  };
-
-  // פתיחת חודש סגור מחדש — מבטל את אישורי ההזנה הידנית (הקבצים שהועלו נשארים)
-  const reopenMonth = (buildingId, month) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      const rec = { ...(b.monthClose?.[month] || {}) };
-      ['receipts', 'expenses'].forEach(id => { rec[id] = { done: false }; });
-      ['bank', 'hiyuvit'].forEach(id => { if (rec[id] && !rec[id].auto) rec[id] = { done: false }; });
-      return { ...b, monthClose: { ...(b.monthClose || {}), [month]: rec } };
-    }));
-  };
-
-  // קליטת תנועות מקובץ עו"ש בנק
-  const ingestBankReport = (buildingId, parsedTransactions) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      let balanceDiff = 0;
-      const newExpenses = parsedTransactions.map(tx => {
-        if (tx.type === 'expense') {
-          balanceDiff -= tx.amount;
-        } else {
-          balanceDiff += tx.amount;
-        }
-        return {
-          id: tx.id,
-          date: tx.date || new Date().toISOString().slice(0, 10),
-          month: currentMonth,
-          category: tx.category,
-          amount: tx.type === 'expense' ? tx.amount : -tx.amount,
-          description: tx.description,
-          source: "בנק"
-        };
-      });
-
-      return {
-        ...b,
-        monthClose: closeStepIn(b, currentMonth, 'bank', { done: true, auto: true, note: `${parsedTransactions.length} תנועות נקלטו מהקובץ` }),
-        currentBalance: (b.currentBalance || 0) + balanceDiff,
-        expenses: [...newExpenses, ...(b.expenses || [])]
-      };
-    }));
-  };
-
-  // קליטת תנועות מקובץ חיובית
-  const ingestHiyuvitReport = (buildingId, parsedTransactions) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      let totalCollected = 0;
-      let totalFees = 0;
-
-      parsedTransactions.forEach(tx => {
-        if (tx.isSuccess) {
-          totalCollected += tx.net;
-          totalFees += tx.fee;
-        }
-      });
-
-      const feeExpense = totalFees > 0 ? [{
-        id: `hiyuvit-fee-${Date.now()}`,
-        date: new Date().toISOString().slice(0, 10),
-        month: currentMonth,
-        category: "עמלות סליקה",
-        amount: totalFees,
-        description: `עמלות סליקה חברת חיובית (${parsedTransactions.length} תנועות)`,
-        source: "חיובית"
-      }] : [];
-
-      return {
-        ...b,
-        monthClose: closeStepIn(b, currentMonth, 'hiyuvit', { done: true, auto: true, note: `${parsedTransactions.length} תנועות גבייה נקלטו מהקובץ` }),
-        currentBalance: (b.currentBalance || 0) + totalCollected,
-        expenses: [...feeExpense, ...(b.expenses || [])]
-      };
-    }));
-  };
+  const updateTransaction = (buildingId, txId, changes, reason = '') => updateB(buildingId, b => ops.editTx(b, txId, changes, reason));
+  const deleteTransaction = (buildingId, txId, reason) => updateB(buildingId, b => ops.deleteTx(b, txId, reason));
+  const restoreTransaction = (buildingId, txId, reason = '') => updateB(buildingId, b => ops.restoreTx(b, txId, reason));
+  const setOpeningBalance = (buildingId, account, amount, date) => updateB(buildingId, b => ops.setOpening(b, account, amount, date));
+  const setCloseStep = (buildingId, month, stepId, value) => updateB(buildingId, b => ops.closeStep(b, month, stepId, value));
+  const reopenMonth = (buildingId, month, reason = '') => updateB(buildingId, b => ops.reopenMonth(b, month, reason));
+  const commitBankImport = (buildingId, plan, { reason = '' } = {}) => updateB(buildingId, b => ops.applyBankImport(b, plan, { reason }));
+  const commitHiyuvitImport = (buildingId, plan, options = {}) => updateB(buildingId, b => ops.applyHiyuvitImport(b, plan, options));
+  const resolvePendingCharges = (buildingId, batchId, groupKey, decision) => updateB(buildingId, b => ops.resolvePending(b, batchId, groupKey, decision));
+  const undoImport = (buildingId, batchId, reason = '') => updateB(buildingId, b => ops.undoBatch(b, batchId, reason));
+  const logReport = (buildingId, entry) => updateB(buildingId, b => ops.addReportLog(b, entry));
 
   // ייבוא דיירים לבניין בודד
   const importApartmentsForBuilding = (buildingId, aptList) => {
@@ -497,7 +406,8 @@ export function AppProvider({ children }) {
         email: apt.email || '',
         monthlyDues: apt.monthlyDues || systemSettings.defaultMonthlyDues || 300,
         paymentMethod: apt.paymentMethod || 'חיובית',
-        debtMonths: apt.debtMonths || []
+        debtMonths: apt.debtMonths || [],
+        ...unitFields(apt)
       }));
       return { ...b, apartments: formatted };
     }));
@@ -518,7 +428,8 @@ export function AppProvider({ children }) {
           email: apt.email || '',
           monthlyDues: apt.monthlyDues || 300,
           paymentMethod: apt.paymentMethod || 'חיובית',
-          debtMonths: []
+          debtMonths: [],
+          ...unitFields(apt)
         }));
         return { ...b, apartments: formatted };
       }
@@ -561,103 +472,37 @@ export function AppProvider({ children }) {
     }));
   };
 
-  // הוספת גבייה מיוחדת (תיקון צנרת / חשמל)
-  const addSpecialLevy = (buildingId, levyData) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      const newLevy = {
-        id: `levy-${Date.now()}`,
-        title: levyData.title,
-        totalAmount: parseFloat(levyData.totalAmount) || 0,
-        amountPerApt: parseFloat(levyData.amountPerApt) || 0,
-        createdAt: new Date().toISOString().slice(0, 10),
-        status: "פעיל",
-        paidApartmentIds: []
-      };
-      return {
-        ...b,
-        specialLevies: [newLevy, ...(b.specialLevies || [])]
-      };
-    }));
-  };
+  // גביות מיוחדות (אפיון 05) — הלוגיקה ב-utils/levies
+  const addLevy = (buildingId, data) => updateB(buildingId, b => lv.addLevy(b, data));
+  const updateLevy = (buildingId, levyId, data) => updateB(buildingId, b => lv.updateLevy(b, levyId, data));
+  const setLevyStatus = (buildingId, levyId, status) => updateB(buildingId, b => lv.setLevyStatus(b, levyId, status));
+  const setLevyPayment = (buildingId, levyId, unitId, month, status) => updateB(buildingId, b => lv.setLevyPayment(b, levyId, unitId, month, status));
 
-  // סימון תשלום עבור גבייה מיוחדת
-  const toggleLevyPayment = (buildingId, levyId, aptId) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      const updatedLevies = (b.specialLevies || []).map(l => {
-        if (l.id !== levyId) return l;
-        const isPaid = (l.paidApartmentIds || []).includes(aptId);
-        const newPaidIds = isPaid
-          ? l.paidApartmentIds.filter(id => id !== aptId)
-          : [...(l.paidApartmentIds || []), aptId];
-        return { ...l, paidApartmentIds: newPaidIds };
-      });
-      return { ...b, specialLevies: updatedLevies };
-    }));
-  };
+  // פריסות חוב (אפיון 07) — הלוגיקה ב-utils/paymentPlans
+  const [planDraft, setPlanDraft] = useState(null); // פריסה חדשה שנפתחת ממסך אחר (למשל מחוב של דירה)
+  const addPaymentPlan = (buildingId, data) => updateB(buildingId, b => pp.addPlan(b, data));
+  const setPlanInstallment = (buildingId, planId, n, changes) => updateB(buildingId, b => pp.setInstallment(b, planId, n, changes));
+  const cancelPaymentPlan = (buildingId, planId) => updateB(buildingId, b => pp.cancelPlan(b, planId));
 
-  // פניות (Issues)
-  const addIssue = (buildingId, title, author, initialComment) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      const newIssue = {
-        id: `iss-${Date.now()}`,
-        title,
-        author,
-        createdAt: new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }),
-        status: 'open',
-        comments: [
-          {
-            id: `comm-${Date.now()}`,
-            author,
-            text: initialComment,
-            time: new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
-          }
-        ]
-      };
-      return {
-        ...b,
-        issues: [newIssue, ...(b.issues || [])]
-      };
-    }));
-  };
-
-  const addIssueComment = (buildingId, issueId, author, text) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      const updatedIssues = (b.issues || []).map(iss => {
-        if (iss.id !== issueId) return iss;
-        return {
-          ...iss,
-          comments: [
-            ...iss.comments,
-            {
-              id: `comm-${Date.now()}`,
-              author,
-              text,
-              time: new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
-            }
-          ]
-        };
-      });
-      return { ...b, issues: updatedIssues };
-    }));
-  };
-
-  const toggleIssueStatus = (buildingId, issueId) => {
-    setBuildings(prev => prev.map(b => {
-      if (b.id !== buildingId) return b;
-      const updatedIssues = (b.issues || []).map(iss => {
-        if (iss.id !== issueId) return iss;
-        return {
-          ...iss,
-          status: iss.status === 'open' ? 'closed' : 'open'
-        };
-      });
-      return { ...b, issues: updatedIssues };
-    }));
-  };
+  // פניות (אפיון 02) — הלוגיקה ב-utils/issues
+  const createIssue = (buildingId, data) => setBuildings(prev => {
+    const number = iss.nextIssueNumber(prev);
+    return prev.map(b => (b.id === buildingId ? iss.createIssue(b, { ...data, number }) : b));
+  });
+  const addIssueMessage = (buildingId, issueId, data) => updateB(buildingId, b => iss.addMessage(b, issueId, data));
+  const editIssueMessage = (buildingId, issueId, messageId, text) => updateB(buildingId, b => iss.editMessage(b, issueId, messageId, text));
+  const closeIssue = (buildingId, issueId, summary) => updateB(buildingId, b => iss.closeIssue(b, issueId, summary));
+  const reopenIssue = (buildingId, issueId) => updateB(buildingId, b => iss.reopenIssue(b, issueId));
+  const setIssueInProgress = (buildingId, issueId, value) => updateB(buildingId, b => iss.setInProgress(b, issueId, value));
+  const setIssueFields = (buildingId, issueId, fields) => updateB(buildingId, b => iss.setIssueFields(b, issueId, fields));
+  // רישום הוצאה מפנייה: מזומן — הוצאה בספר התנועות + קישור; העברה — רק הערה (סעיף 7.9)
+  const linkIssueExpense = (buildingId, issueId, { method, amount, category, description, date, reason = '' }) => updateB(buildingId, b => {
+    if (method !== 'cash') return iss.linkExpense(b, issueId, { method, amount });
+    const withTx = ops.recordExpense(b, { category, amount, description, date, reason });
+    const txId = withTx.transactions[0].id;
+    const linked = { ...withTx, transactions: withTx.transactions.map(t => (t.id === txId ? { ...t, issueId } : t)) };
+    return iss.linkExpense(linked, issueId, { method, amount, txId });
+  });
 
   // שמירת מצב דוח חדש (Preset)
   const savePreset = (presetData) => {
@@ -691,7 +536,7 @@ export function AppProvider({ children }) {
     try {
       const parsed = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
       if (Array.isArray(parsed)) {
-        setBuildings(parsed.map((b, idx) => ({ ...b, color: getBuildingColor(b, idx) })));
+        setBuildings(loadAll(parsed));
         alert("הנתונים שוחזרו בהצלחה!");
       }
     } catch {
@@ -719,16 +564,35 @@ export function AppProvider({ children }) {
     updateBuildingSettings,
     recordManualReceipt,
     recordCashExpense,
-    ingestBankReport,
-    ingestHiyuvitReport,
+    updateTransaction,
+    deleteTransaction,
+    restoreTransaction,
+    setOpeningBalance,
+    commitBankImport,
+    commitHiyuvitImport,
+    resolvePendingCharges,
+    undoImport,
+    logReport,
     importApartmentsForBuilding,
     importMasterSheets,
     handleTenantTurnover,
-    addSpecialLevy,
-    toggleLevyPayment,
-    addIssue,
-    addIssueComment,
-    toggleIssueStatus,
+    planDraft,
+    setPlanDraft,
+    addPaymentPlan,
+    setPlanInstallment,
+    cancelPaymentPlan,
+    addLevy,
+    updateLevy,
+    setLevyStatus,
+    setLevyPayment,
+    createIssue,
+    addIssueMessage,
+    editIssueMessage,
+    closeIssue,
+    reopenIssue,
+    setIssueInProgress,
+    setIssueFields,
+    linkIssueExpense,
     savePreset,
     deletePreset,
     exportFullBackup,
@@ -751,13 +615,6 @@ export function AppProvider({ children }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
-
-// עדכון שלב אחד ברשומת סגירת החודש של בניין
-function closeStepIn(building, month, stepId, value) {
-  const all = building.monthClose || {};
-  const rec = all[month] || {};
-  return { ...all, [month]: { ...rec, [stepId]: { ...value, at: new Date().toISOString().slice(0, 10) } } };
 }
 
 export function useApp() {

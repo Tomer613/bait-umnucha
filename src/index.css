@@ -1043,6 +1043,7 @@ input:focus-visible + .slider { box-shadow: var(--focus-ring); }
   animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .modal-sm { max-width: 480px; }
+.modal-lg { max-width: 1040px; }
 .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
 .modal-title { font-size: 1.35rem; font-weight: 700; }
 .modal-sub { font-size: 0.89rem; color: var(--ink-500); margin-top: 3px; }
@@ -1532,3 +1533,77 @@ html[data-density="spacious"] { --space-page: 28px; --space-card: 30px; --space-
 .close-open-list li { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--surface-3); flex-wrap: wrap; }
 .close-open-list li:last-child { border-bottom: none; }
 .close-missing { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+
+/* ==========================================================================
+   כספים: תצוגה מקדימה לקליטה, התאמה לבנק, עריכת תנועות (אפיון 04)
+   ========================================================================== */
+.import-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.import-stat { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: var(--radius-md, 12px); background: var(--surface-2); border: 1px solid var(--surface-3); }
+.import-stat strong { font-size: 1.35rem; color: var(--ink-900); }
+.import-stat span { font-size: 0.86rem; color: var(--ink-500); }
+.import-stat.is-good { background: var(--petrol-50); border-color: var(--petrol-100); }
+.import-stat.is-bad { background: var(--coral-50); border-color: var(--coral-100); }
+.import-table { max-height: 46vh; overflow: auto; border: 1px solid var(--surface-3); border-radius: var(--radius-md, 12px); }
+.import-table thead th { position: sticky; top: 0; z-index: 1; }
+.data-table tr.is-muted td { color: var(--ink-400); background: var(--surface-2); }
+
+.reconcile { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: var(--radius-md, 12px); border: 1.5px solid; font-size: 0.93rem; }
+.reconcile.is-match { background: var(--petrol-50); border-color: var(--petrol-200); color: var(--petrol-800); }
+.reconcile.is-gap { background: var(--warning-bg); border-color: var(--warning-border); color: var(--ink-800); }
+.reconcile > div { display: flex; flex-direction: column; gap: 4px; }
+.reconcile-verdict { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 600; }
+
+.data-table tr.tx-row { cursor: pointer; }
+.data-table tr.tx-row:focus-visible td { outline: 2px solid var(--petrol-500); outline-offset: -2px; }
+.data-table tr.is-deleted td { color: var(--ink-400); text-decoration: line-through; text-decoration-color: var(--ink-300); }
+.data-table tr.is-deleted .cell-sub { text-decoration: none; }
+.tx-edited { display: inline-flex; align-items: center; gap: 3px; margin-inline-start: 8px; font-size: 0.78rem; color: var(--ink-400); }
+
+.tx-history { border-top: 1px solid var(--surface-3); padding-top: 10px; font-size: 0.88rem; }
+.tx-history summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-600); font-weight: 600; }
+.tx-history ul { margin: 8px 0 0; padding-inline-start: 18px; display: flex; flex-direction: column; gap: 4px; }
+
+@media (max-width: 640px) {
+  .import-summary { grid-template-columns: 1fr; }
+}
+
+/* דוח על חודש פתוח = טיוטה (אפיון 04, סעיף 6.5) */
+.report-doc.is-draft { position: relative; }
+.report-doc.is-draft::after {
+  content: 'טיוטה';
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 9rem; font-weight: 800; color: var(--ink-900); opacity: 0.045; transform: rotate(-24deg);
+  pointer-events: none;
+}
+.draft-banner { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 10px 14px; border-radius: var(--radius-md); background: var(--warning-bg); border: 1.5px solid var(--warning-border); color: var(--warning); font-weight: 700; }
+.rule-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.rule-list .category-name { white-space: normal; overflow: visible; text-overflow: clip; }
+.unit-tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: var(--gold-50); border: 1px solid var(--gold-200); color: var(--gold-700); font-size: 0.86rem; }
+.data-table .cell-sub.unit-match { color: var(--gold-700); font-weight: 700; }
+.data-table tr.group-row td { background: var(--surface-2); font-weight: 800; color: var(--ink-700); font-size: 0.86rem; padding-top: 8px; padding-bottom: 8px; }
+
+/* גביות מיוחדות (אפיון 05) */
+.unit-checklist { display: flex; flex-wrap: wrap; gap: 6px; max-height: 220px; overflow: auto; }
+.commercial-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: var(--radius-md); background: var(--gold-50); border: 1.5px dashed var(--gold-400); color: var(--gold-700); font-weight: 700; }
+.commercial-bar span { display: inline-flex; align-items: center; gap: 6px; }
+.levy-matrix { max-height: 420px; overflow: auto; }
+.levy-matrix thead th { position: sticky; top: 0; z-index: 1; }
+.levy-cell { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; border-radius: 8px; border: 1px solid var(--surface-3); background: var(--surface); color: var(--ink-400); cursor: pointer; font-weight: 700; }
+.levy-cell:hover { border-color: var(--petrol-500); }
+.levy-cell.is-paid { background: var(--petrol-50); border-color: var(--petrol-200); color: var(--success); }
+.levy-cell.is-failed { background: var(--coral-50); border-color: var(--coral-200); color: var(--coral-600); }
+.levy-cell.is-future { color: var(--ink-300); }
+.card.is-closed { opacity: 0.75; }
+.import-section { border: 1px solid var(--surface-3); border-radius: var(--radius-md); padding: 12px 14px; background: var(--surface); }
+.import-section > summary { cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-800); }
+.class-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.93rem; }
+.class-actions { margin-inline-start: auto; }
+.suspect-box { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--warning-bg); border: 1.5px solid var(--warning-border); color: var(--ink-800); }
+
+/* פניות (אפיון 02) */
+.issue-item.is-urgent { box-shadow: inset -4px 0 0 var(--coral-500); }
+.thread-event { align-self: center; font-size: 0.82rem; color: var(--ink-400); padding: 2px 10px; border-radius: 999px; background: var(--surface-2); }
+.comment--internal { background: var(--gold-50) !important; border-color: var(--gold-200) !important; }
+.textarea.is-internal { background: var(--gold-50); border-color: var(--gold-400); }
+.icon-link { background: none; border: 0; padding: 0 0 0 0; margin-inline-start: 6px; color: var(--ink-400); cursor: pointer; vertical-align: middle; }
+.icon-link:hover { color: var(--petrol-600); }

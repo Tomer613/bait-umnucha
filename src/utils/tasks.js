@@ -4,12 +4,16 @@
 // ==========================================================================
 import { aptDebt, monthName, formatILS } from './format';
 import { isMonthClosed, missingSteps } from './monthClose';
+import { buildingBalance } from './ledger';
+import { levyTotals } from './levies';
+import { planTotals, counterpartyText } from './paymentPlans';
+import { formatDateIL } from './ledger';
+import { awaitingManager, waitingDays } from './issues';
 
 export const DEFAULT_LOW_BALANCE = 7000;
 export const DEFAULT_CHRONIC_MONTHS = 3;
-const MANAGER_AUTHORS = ['מנהל החברה', 'מנהל מערכת'];
 
-export function computeTasks(scope, { currentMonth, lowBalance = DEFAULT_LOW_BALANCE, chronicMonths = DEFAULT_CHRONIC_MONTHS } = {}) {
+export function computeTasks(scope, { currentMonth, lowBalance = DEFAULT_LOW_BALANCE, chronicMonths = DEFAULT_CHRONIC_MONTHS, reminderDays = 3 } = {}) {
   const tasks = [];
   const month = monthName(currentMonth);
 
@@ -51,57 +55,89 @@ export function computeTasks(scope, { currentMonth, lowBalance = DEFAULT_LOW_BAL
     });
   }
 
-  // 3. פניות שמחכות למענה ההנהלה (התגובה האחרונה אינה של ההנהלה)
+  // 3. פניות שמחכות למענה ההנהלה (ההודעה האחרונה של נציג/דייר). דחופה — מודגשת.
   const awaiting = scope.flatMap(b => (b.issues || [])
-    .filter(i => i.status === 'open')
-    .filter(i => {
-      const last = (i.comments || [])[i.comments.length - 1];
-      return !last || !MANAGER_AUTHORS.includes(last.author);
-    })
-    .map(i => ({ b, i })));
+    .filter(awaitingManager)
+    .map(i => ({ b, i, days: waitingDays(i) })))
+    .sort((x, y) => (y.i.urgent ? 1 : 0) - (x.i.urgent ? 1 : 0) || y.days - x.days);
   if (awaiting.length) {
+    const overdue = reminderDays ? awaiting.filter(x => x.days >= (x.i.urgent ? 1 : reminderDays)).length : 0;
     tasks.push({
       id: 'issues',
       tone: 'violet',
       title: awaiting.length === 1 ? 'פנייה אחת מחכה לתשובה שלך' : `${awaiting.length} פניות מחכות לתשובה שלך`,
-      text: 'התגובה האחרונה בהן היא של הדיירים או הנציגים.',
-      items: awaiting.map(({ b, i }) => ({
+      text: overdue ? `${overdue} מהן ממתינות יותר מדי זמן (דחופה: יום, רגילה: ${reminderDays} ימים).` : 'ההודעה האחרונה בהן היא של הדיירים או הנציגים.',
+      items: awaiting.map(({ b, i, days }) => ({
         key: `${b.id}-${i.id}`,
         building: b,
-        detail: `${i.title} · ${i.author}`,
+        detail: `${i.urgent ? '🔴 דחופה · ' : ''}#${i.number} ${i.title}${days ? ` · ממתינה ${days === 1 ? 'יום' : `${days} ימים`}` : ''}`,
         action: 'issue'
       }))
     });
   }
 
-  // 4. גבייה מיוחדת שנתקעה (פחות מחצי מהיעד)
+  // 3א. חיובי חיובית שממתינים לשיוך (אפיון 05)
+  const pendingCharges = scope.map(b => ({ b, count: (b.importBatches || []).reduce((s, bt) => s + (bt.pending?.length || 0), 0) })).filter(x => x.count > 0);
+  if (pendingCharges.length) {
+    tasks.push({
+      id: 'pending-charges',
+      tone: 'gold',
+      title: pendingCharges.length === 1 ? `${pendingCharges[0].count} חיובים מחיובית ממתינים לשיוך` : `חיובים מחיובית ממתינים לשיוך ב-${pendingCharges.length} בניינים`,
+      text: 'חיובים שלא תאמו לדמי הוועד או לגבייה קיימת. משייכים אותם במסך הגביות המיוחדות.',
+      items: pendingCharges.map(({ b, count }) => ({ key: `${b.id}-pending`, building: b, detail: `${count} חיובים`, action: 'levy' }))
+    });
+  }
+
+  // 3ב. פריסות חוב: תשלום שעבר מועדו (אפיון 07, סעיף 6)
+  const today = new Date().toISOString().slice(0, 10);
+  const late = scope.flatMap(b => (b.paymentPlans || []).filter(p => p.status === 'active')
+    .flatMap(p => planTotals(p, today).late.map(i => ({ b, p, i }))));
+  if (late.length) {
+    tasks.push({
+      id: 'plans-late',
+      tone: 'coral',
+      title: late.length === 1 ? 'תשלום אחד בפריסת חוב עבר את המועד' : `${late.length} תשלומים בפריסות חוב עברו את המועד`,
+      text: 'צ׳ק שעוד לא נפרע, או דייר שלא שילם תשלום בהסדר.',
+      items: late.map(({ b, p, i }) => ({
+        key: `${b.id}-${p.id}-${i.n}`,
+        building: b,
+        detail: p.direction === 'payable'
+          ? `${counterpartyText(p, b)}${i.checkNumber ? ` · צ׳ק ${i.checkNumber}` : ''} · ${formatILS(i.amount)} · ${formatDateIL(i.dueDate)} — עדיין לא נפרע`
+          : `${counterpartyText(p, b)} · תשלום ${i.n} בהסדר · ${formatILS(i.amount)} · ${formatDateIL(i.dueDate)} — לא התקבל`,
+        action: 'plans'
+      }))
+    });
+  }
+
+  // 4. גבייה מיוחדת שנתקעה (פחות מחצי מהיעד שכבר הגיע מועדו)
   const stuck = scope.flatMap(b => (b.specialLevies || [])
-    .map(l => ({ b, l, collected: (l.paidApartmentIds?.length || 0) * (l.amountPerApt || 0) }))
-    .filter(x => x.l.totalAmount > 0 && x.collected / x.l.totalAmount < 0.5));
+    .filter(l => l.status === 'active')
+    .map(l => ({ b, l, ...levyTotals(l, b, currentMonth) }))
+    .filter(x => x.target > 0 && x.collected / x.target < 0.5));
   if (stuck.length) {
     tasks.push({
       id: 'levies',
       tone: 'sky',
       title: stuck.length === 1 ? 'גבייה מיוחדת אחת תקועה מתחת לחצי מהיעד' : `${stuck.length} גביות מיוחדות תקועות מתחת לחצי מהיעד`,
       text: 'כדאי לבדוק מי עוד לא שילם את חלקו.',
-      items: stuck.map(({ b, l, collected }) => ({
+      items: stuck.map(({ b, l, collected, target }) => ({
         key: `${b.id}-${l.id}`,
         building: b,
-        detail: `${l.title} · נגבו ${formatILS(collected)} מתוך ${formatILS(l.totalAmount)}`,
+        detail: `${l.name} · נגבו ${formatILS(collected)} מתוך ${formatILS(target)}`,
         action: 'levy'
       }))
     });
   }
 
   // 5. יתרה נמוכה בקופה
-  const low = scope.filter(b => (b.currentBalance || 0) < lowBalance).sort((a, b) => (a.currentBalance || 0) - (b.currentBalance || 0));
+  const low = scope.filter(b => buildingBalance(b) < lowBalance).sort((a, b) => buildingBalance(a) - buildingBalance(b));
   if (low.length) {
     tasks.push({
       id: 'balance',
       tone: 'petrol',
       title: low.length === 1 ? `בניין אחד עם יתרה מתחת ל-${formatILS(lowBalance)}` : `${low.length} בניינים עם יתרה מתחת ל-${formatILS(lowBalance)}`,
       text: 'כדאי לוודא שיש כיסוי להוצאות הקבועות של החודש הבא.',
-      items: low.map(b => ({ key: b.id, building: b, detail: `יתרה: ${formatILS(b.currentBalance)}`, action: 'finance' }))
+      items: low.map(b => ({ key: b.id, building: b, detail: `יתרה: ${formatILS(buildingBalance(b))}`, action: 'finance' }))
     });
   }
 

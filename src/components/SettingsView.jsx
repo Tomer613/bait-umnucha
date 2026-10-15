@@ -10,8 +10,10 @@ import ConfirmModal from './ConfirmModal';
 import { PageHeader, SubTabs, FlashMessage, Field, BuildingAvatar } from './ui';
 import { buildingDebt, formatILS } from '../utils/format';
 import { closeStatus } from '../utils/monthClose';
+import { buildingBalance } from '../utils/ledger';
 import DisplaySettings from './DisplaySettings';
 import ExpenseCategoriesSettings from './ExpenseCategoriesSettings';
+import IssueSettings from './IssueSettings';
 import {
   Building2,
   Sliders,
@@ -29,7 +31,8 @@ import {
   DollarSign,
   Eye,
   Landmark,
-  Tags
+  Tags,
+  MessageSquare
 } from 'lucide-react';
 
 export default function SettingsView({ onOpenAddBuilding }) {
@@ -38,6 +41,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
     currentMonth,
     updateBuilding,
     deleteBuilding,
+    setOpeningBalance,
+    activeSubTab,
     systemSettings,
     updateSystemSettings,
     exportFullBackup,
@@ -45,7 +50,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
   } = useApp();
 
   // לשונית פנימית פעילה בתוך מרכז ההגדרות
-  const [innerTab, setInnerTab] = useState('buildings'); // 'buildings' | 'preferences' | 'display' | 'backup'
+  // אפשר להגיע ללשונית מסוימת מקישור במסך אחר ("שינוי בהגדרות ←")
+  const [innerTab, setInnerTab] = useState(activeSubTab || 'buildings'); // 'buildings' | 'preferences' | 'categories' | 'display' | 'backup'
 
   // הודעת סטטוס והצלחה
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
@@ -62,7 +68,11 @@ export default function SettingsView({ onOpenAddBuilding }) {
     address: '',
     bankAccount: '',
     hiyuvitCode: '',
-    color: null
+    color: null,
+    openingBank: '',
+    openingBankDate: '',
+    openingCash: '',
+    openingCashDate: ''
   });
 
   const startEditBuilding = (bld) => {
@@ -72,12 +82,19 @@ export default function SettingsView({ onOpenAddBuilding }) {
       address: bld.address || '',
       bankAccount: bld.bankAccount || '',
       hiyuvitCode: bld.hiyuvitCode || '',
-      color: bld.color || BUILDING_COLOR_PALETTE[0]
+      color: bld.color || BUILDING_COLOR_PALETTE[0],
+      openingBank: String(bld.openingBalance?.bank?.amount ?? 0),
+      openingBankDate: bld.openingBalance?.bank?.date || '',
+      openingCash: String(bld.openingBalance?.cash?.amount ?? 0),
+      openingCashDate: bld.openingBalance?.cash?.date || ''
     });
   };
 
   const handleSaveBuilding = (bldId) => {
-    updateBuilding(bldId, editBuildingForm);
+    const { openingBank, openingBankDate, openingCash, openingCashDate, ...details } = editBuildingForm;
+    updateBuilding(bldId, details);
+    setOpeningBalance(bldId, 'bank', openingBank, openingBankDate);
+    setOpeningBalance(bldId, 'cash', openingCash, openingCashDate);
     setEditingBuildingId(null);
     triggerSuccess(`פרטי בניין ${editBuildingForm.name} עודכנו בהצלחה!`);
   };
@@ -323,7 +340,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
         tabs={[
           { id: 'buildings', label: `בניינים (${buildings.length})`, icon: Building2 },
           { id: 'preferences', label: 'פרטי החברה ומכתבים', icon: Sliders },
-          { id: 'categories', label: 'קטגוריות הוצאה', icon: Tags },
+          { id: 'categories', label: 'קטגוריות וקליטת קבצים', icon: Tags },
+          { id: 'issues', label: 'פניות', icon: MessageSquare },
           { id: 'display', label: 'תצוגה ונוחות קריאה', icon: Eye },
           { id: 'backup', label: 'גיבוי ושחזור', icon: ShieldCheck }
         ]}
@@ -382,6 +400,30 @@ export default function SettingsView({ onOpenAddBuilding }) {
                         </Field>
                       </div>
 
+                      <div className="info-panel stack" style={{ gap: 10 }}>
+                        <span className="field-label">יתרת פתיחה</span>
+                        <span className="field-hint" style={{ marginTop: -6 }}>
+                          היתרה בקופה מחושבת מיתרת הפתיחה ועוד כל התנועות. יתרת פתיחת הבנק היא היתרה בבנק <strong>לפני</strong> התנועה הראשונה שנקלטה.
+                          יתרה נוכחית: {formatILS(buildingBalance(bld))}.
+                        </span>
+                        <div className="field-row">
+                          <Field label="בנק (₪)">
+                            <input type="number" step="0.01" value={editBuildingForm.openingBank} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, openingBank: e.target.value })} className="input" />
+                          </Field>
+                          <Field label="נכון לתאריך">
+                            <input type="date" value={editBuildingForm.openingBankDate} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, openingBankDate: e.target.value })} className="input" />
+                          </Field>
+                        </div>
+                        <div className="field-row">
+                          <Field label="קופת מזומן (₪)">
+                            <input type="number" step="0.01" value={editBuildingForm.openingCash} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, openingCash: e.target.value })} className="input" />
+                          </Field>
+                          <Field label="נכון לתאריך">
+                            <input type="date" value={editBuildingForm.openingCashDate} onChange={(e) => setEditBuildingForm({ ...editBuildingForm, openingCashDate: e.target.value })} className="input" />
+                          </Field>
+                        </div>
+                      </div>
+
                       <div className="field">
                         <span className="field-label">צבע השלט · {previewColor.name}</span>
                         <div className="swatch-grid">
@@ -434,7 +476,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
 
                     <div className="bcard-stats">
                       <div><span>דירות</span><strong>{aptCount}</strong></div>
-                      <div><span>יתרת קופה</span><strong>{formatILS(bld.currentBalance)}</strong></div>
+                      <div><span>יתרת קופה</span><strong>{formatILS(buildingBalance(bld))}</strong></div>
                       <div><span>קוד חיובית</span><strong>{bld.hiyuvitCode || '—'}</strong></div>
                     </div>
 
@@ -1066,6 +1108,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
       )}
 
       {innerTab === 'categories' && <ExpenseCategoriesSettings />}
+
+      {innerTab === 'issues' && <IssueSettings />}
 
       {innerTab === 'display' && <DisplaySettings />}
 

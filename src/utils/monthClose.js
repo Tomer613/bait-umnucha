@@ -44,3 +44,18 @@ export function closeStatus(building, month) {
   if (done === 0) return { id: 'open', label: 'ממתין לסגירת חודש', done };
   return { id: 'progress', label: `בתהליך סגירה (${done}/${CLOSE_STEPS.length})`, done };
 }
+
+// עדכון שלב אחד ברשומות סגירת החודש (building.monthClose)
+export function closeStepIn(monthClose, month, stepId, value) {
+  const all = monthClose || {};
+  const rec = all[month] || {};
+  return { ...all, [month]: { ...rec, [stepId]: { ...value, at: new Date().toISOString().slice(0, 10) } } };
+}
+
+// חודש שנפתח מחדש: אישורי ההזנה הידנית מתבטלים, קבצים שהועלו נשארים מסומנים
+export function reopenedRecord(rec = {}) {
+  const out = { ...rec };
+  ['receipts', 'expenses'].forEach(id => { out[id] = { done: false }; });
+  ['bank', 'hiyuvit'].forEach(id => { if (out[id] && !out[id].auto) out[id] = { done: false }; });
+  return out;
+}

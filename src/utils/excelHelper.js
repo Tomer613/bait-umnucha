@@ -2,6 +2,7 @@
 // בית ומנוחה - מודול אקסל מתקדם (SheetJS / xlsx)
 // ==========================================================================
 import * as XLSX from 'xlsx';
+import { buildingBalance, expenseSum } from './ledger';
 
 /**
  * הורדת קובץ אקסל לדפדפן
@@ -15,15 +16,17 @@ function downloadWorkbook(workbook, filename) {
  */
 export function downloadSingleBuildingTemplate(buildingName = "בניין לדוגמה") {
   const data = [
-    ["מספר דירה", "שם דייר", "טלפון", "אימייל", "דמי ועד חודשיים", "אופן תשלום"],
+    ["מספר דירה", "שם דייר", "טלפון", "אימייל", "דמי ועד חודשיים", "אופן תשלום", "סוג (דירה / חנות / מחסן)", "שם עסק", "שם מעביר בבנק", "מספר לקוח בחיובית"],
     [1, "ישראל ישראלי", "050-1234567", "israel@example.com", 300, "חיובית"],
     [2, "אברהם לוי", "052-7654321", "levi@example.com", 300, "העברה בנקאית"],
     [3, "יעקב כהן", "054-9876543", "cohen@example.com", 250, "מזומן"],
-    [4, "שרה שפירא", "053-5554433", "shapiro@example.com", 350, "חיובית"]
+    [4, "שרה שפירא", "053-5554433", "shapiro@example.com", 350, "חיובית"],
+    ["חנות 1", "משה בעל העסק", "050-1112222", "", 250, "העברה בנקאית", "חנות", "פאפאיה אופנה בע״מ", "פאפאיה אופנה", ""],
+    ["מחסן 1", "יוסי מינץ", "", "", 100, "חיובית", "מחסן", "מינץ", "", ""]
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 15 }];
+  ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 15 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 18 }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, buildingName.slice(0, 31));
@@ -39,19 +42,23 @@ export function downloadMasterBuildingsTemplate(buildings) {
 
   buildings.forEach((b) => {
     const data = [
-      ["מספר דירה", "שם דייר", "טלפון", "אימייל", "דמי ועד חודשיים", "אופן תשלום"]
+      ["מספר דירה", "שם דייר", "טלפון", "אימייל", "דמי ועד חודשיים", "אופן תשלום", "סוג (דירה / חנות / מחסן)", "שם עסק", "שם מעביר בבנק", "מספר לקוח בחיובית"]
     ];
 
     if (b.apartments && b.apartments.length > 0) {
       b.apartments.forEach(apt => {
-        data.push([apt.aptNum, apt.tenantName, apt.phone || '', apt.email || '', apt.monthlyDues, apt.paymentMethod || 'חיובית']);
+        data.push([
+          apt.aptNum, apt.tenantName, apt.phone || '', apt.email || '', apt.monthlyDues, apt.paymentMethod || 'חיובית',
+          apt.unitType === 'commercial' ? (apt.commercialLabel === 'storage' ? 'מחסן' : 'חנות') : 'דירה',
+          apt.businessName || '', (apt.bankPayerNames || []).join(', '), apt.hiyuvitClientNumber || ''
+        ]);
       });
     } else {
       data.push([1, "דייר לדוגמה", "050-0000000", "tenant@example.com", 300, "חיובית"]);
     }
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 15 }];
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 15 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws, b.name.slice(0, 31));
   });
 
@@ -79,9 +86,17 @@ export async function readTenantExcelFile(file) {
           for (let i = 1; i < rawRows.length; i++) {
             const row = rawRows[i];
             if (!row || row.length === 0 || !row[0]) continue;
+            const kind = String(row[6] || '').trim();
+            const commercial = kind === 'חנות' || kind === 'מחסן' || kind === 'מסחר';
+            const rawNum = String(row[0]).trim();
             apartments.push({
-              aptNum: parseInt(row[0]) || i,
-              tenantName: String(row[1] || `דירה ${row[0]}`).trim(),
+              aptNum: /^\d+$/.test(rawNum) ? parseInt(rawNum, 10) : rawNum,
+              tenantName: String(row[1] || (commercial ? '' : `דירה ${row[0]}`)).trim(),
+              unitType: commercial ? 'commercial' : 'residential',
+              commercialLabel: kind === 'מחסן' ? 'storage' : 'shop',
+              businessName: String(row[7] || '').trim(),
+              bankPayerNames: String(row[8] || ''),
+              hiyuvitClientNumber: String(row[9] || '').trim(),
               phone: String(row[2] || '').trim(),
               email: String(row[3] || '').trim(),
               monthlyDues: parseFloat(row[4]) || 300,
@@ -120,9 +135,7 @@ export function exportExpensesMatrixExcel(building, year = 2026, categories = []
 
     for (let m = 1; m <= 12; m++) {
       const monthKey = `${year}-${String(m).padStart(2, '0')}`;
-      const sum = (building.expenses || [])
-        .filter(exp => exp.month === monthKey && exp.category === cat)
-        .reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+      const sum = expenseSum(building, { month: monthKey, category: cat });
 
       catRow.push(sum || 0);
       catTotal += sum;
@@ -206,7 +219,7 @@ export function exportMasterSummaryExcel(buildings = []) {
     const debts = (b.apartments || []).reduce((acc, a) => acc + ((a.debtMonths?.length || 0) * (a.monthlyDues || 0)), 0);
     const openIssues = (b.issues || []).filter(i => i.status === 'open').length;
 
-    totalBalanceAll += (b.currentBalance || 0);
+    totalBalanceAll += buildingBalance(b);
     totalDuesAll += monthlyDues;
     totalDebtsAll += debts;
     totalAptsAll += aptCount;
@@ -216,7 +229,7 @@ export function exportMasterSummaryExcel(buildings = []) {
       b.address || '',
       b.hiyuvitCode || '',
       b.bankAccount || '',
-      b.currentBalance || 0,
+      buildingBalance(b),
       aptCount,
       monthlyDues,
       debts,

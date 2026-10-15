@@ -1,191 +1,227 @@
 // ==========================================================================
-// בית ומנוחה - גבייה מיוחדת לפרויקטים חד-פעמיים (תיקון צנרת / חשמל / גג)
-// מוצג כתת-לשונית במסך הכספים
+// בית ומנוחה - גביות מיוחדות (אפיון 05): חד-פעמיות או בפריסה לתשלומים,
+// כל גבייה קופה נפרדת עם מעקב תשלום לכל יחידה × חודש. מוצג כתת-לשונית במסך הכספים.
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Wrench, PlusCircle, CheckCircle2, Target, PiggyBank, FolderKanban } from 'lucide-react';
-import { Kpi, Modal, Field, EmptyState, BuildingName } from './ui';
-import { formatILS, withBuilding, requestBuildingPick } from '../utils/format';
+import { Wrench, PlusCircle, Target, PiggyBank, FolderKanban, Pencil, CheckCircle2, XCircle, Store } from 'lucide-react';
+import { Kpi, Modal, EmptyState, BuildingName } from './ui';
+import { formatILS, formatMonth, monthName, withBuilding, requestBuildingPick } from '../utils/format';
+import { levyTotals, levyMonths, paymentOf, amountFor, unitBalance, LEVY_STATUS } from '../utils/levies';
+import { unitLabel, unitDisplayName, isCommercial } from '../utils/units';
+import LevyForm from './levies/LevyForm';
+import PendingCharges from './levies/PendingCharges';
+
+// מחזור סימון בתא: ריק → שולם → נכשל → ריק
+const NEXT_STATUS = { none: 'paid', paid: 'failed', failed: null };
+
+function modeText(levy, currentMonth) {
+  if (levy.mode !== 'monthly') return `חד-פעמי · ${formatMonth(levy.startMonth)}`;
+  const months = levyMonths(levy, currentMonth);
+  const range = levy.installments
+    ? `${formatMonth(months[0])}–${formatMonth(months[months.length - 1])} (${levy.installments} תשלומים)`
+    : `מ${formatMonth(levy.startMonth)}, ללא הגבלה`;
+  return `${formatILS(levy.amountPerApt)} לחודש · ${range}`;
+}
 
 export default function SpecialLevies() {
-  const { currentBuilding, buildings, setSelectedBuildingId, addSpecialLevy, toggleLevyPayment } = useApp();
-
+  const { currentBuilding, buildings, setSelectedBuildingId, addLevy, updateLevy, setLevyStatus, setLevyPayment, currentMonth } = useApp();
   const isGlobalMode = !currentBuilding;
+  const [form, setForm] = useState(null); // { buildingId, levy? }
+  const [showClosed, setShowClosed] = useState(false);
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [title, setTitle] = useState('');
-  const [splitMode, setSplitMode] = useState('total'); // 'total' | 'perApt'
-  const [totalCost, setTotalCost] = useState('');
-  const [amountPerApt, setAmountPerApt] = useState('');
-
-  // פרויקט נפתח תמיד לבניין שנבחר ב"עובדים על" למעלה
-  const targetBuilding = currentBuilding;
   const openNewLevy = () => {
     if (!currentBuilding) {
       requestBuildingPick('לאיזה בניין לפתוח את הגבייה? בחרו בניין');
       return;
     }
-    setShowAddModal(true);
-  };
-  const aptCount = targetBuilding?.apartments?.length || 0;
-
-  const closeModal = () => {
-    setShowAddModal(false);
-    setTitle('');
-    setTotalCost('');
-    setAmountPerApt('');
-  };
-
-  const handleCreateLevy = (e) => {
-    e.preventDefault();
-    if (!title || !targetBuilding) return;
-    const divisor = aptCount || 1;
-    const finalTotal = splitMode === 'total' ? (parseFloat(totalCost) || 0) : (parseFloat(amountPerApt) || 0) * divisor;
-    const finalPerApt = splitMode === 'total' ? Math.round(finalTotal / divisor) : (parseFloat(amountPerApt) || 0);
-    addSpecialLevy(targetBuilding.id, { title, totalAmount: finalTotal, amountPerApt: finalPerApt });
-    closeModal();
+    setForm({ buildingId: currentBuilding.id });
   };
 
   const scopeBuildings = currentBuilding ? [currentBuilding] : buildings;
-  const levies = scopeBuildings.flatMap(b =>
-    withBuilding(b, b.specialLevies).map(l => ({ ...l, apartments: b.apartments || [] }))
-  );
+  const all = scopeBuildings.flatMap(b => withBuilding(b, b.specialLevies).map(l => ({ ...l, building: b, totals: levyTotals(l, b, currentMonth) })));
+  const active = all.filter(l => l.status === 'active');
+  const closed = all.filter(l => l.status !== 'active');
+  const shown = showClosed ? all : active;
 
-  const totalCostSum = levies.reduce((acc, l) => acc + (l.totalAmount || 0), 0);
-  const totalCollected = levies.reduce((acc, l) => acc + (l.paidApartmentIds?.length || 0) * (l.amountPerApt || 0), 0);
-  const percentAll = totalCostSum > 0 ? Math.round((totalCollected / totalCostSum) * 100) : 0;
+  const targetSum = active.reduce((s, l) => s + l.totals.target, 0);
+  const collectedSum = active.reduce((s, l) => s + l.totals.collected, 0);
+  const formBuilding = form ? buildings.find(b => b.id === form.buildingId) : null;
 
   return (
     <>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <p className="section-sub" style={{ margin: 0 }}>
-          קופות נפרדות לתיקונים ופרויקטים חריגים, עם מעקב מי שילם את חלקו.
+          גבייה מעבר לדמי הוועד, חד-פעמית או בפריסה לתשלומים. כל גבייה היא קופה נפרדת עם מעקב מי שילם.
         </p>
         <button onClick={openNewLevy} className="btn btn-primary">
-          <PlusCircle size={17} /> פרויקט גבייה חדש
+          <PlusCircle size={17} /> גבייה מיוחדת חדשה
         </button>
       </div>
 
       <div className="kpi-grid">
-        <Kpi variant="sky" icon={FolderKanban} label="פרויקטים פעילים" value={levies.length} meta={isGlobalMode ? 'בכלל הבניינים' : currentBuilding.name} />
-        <Kpi variant="gold" icon={Target} label="יעד גבייה" value={formatILS(totalCostSum)} meta="סך עלות הפרויקטים" />
-        <Kpi variant="good" icon={PiggyBank} label="נגבה בפועל" value={formatILS(totalCollected)} meta={`${percentAll}% מהיעד`} />
+        <Kpi variant="sky" icon={FolderKanban} label="גביות פעילות" value={active.length} meta={isGlobalMode ? 'בכלל הבניינים' : currentBuilding.name} />
+        <Kpi variant="gold" icon={Target} label="יעד" value={formatILS(targetSum)} meta="כל התשלומים של הגביות הפעילות" />
+        <Kpi variant="good" icon={PiggyBank} label="נגבה בפועל" value={formatILS(collectedSum)} meta={`${targetSum ? Math.round((collectedSum / targetSum) * 100) : 0}% מהיעד`} />
       </div>
 
-      {levies.length === 0 ? (
+      {currentBuilding && <PendingCharges building={currentBuilding} />}
+
+      {closed.length > 0 && (
+        <label className="check-chip" style={{ alignSelf: 'flex-start' }}>
+          <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />
+          הצגת גביות שהושלמו או בוטלו ({closed.length})
+        </label>
+      )}
+
+      {shown.length === 0 ? (
         <div className="card">
           <EmptyState
             icon={Wrench}
-            title="אין פרויקטי גבייה פעילים"
-            text="כשיש תיקון חריג (צנרת, לוח חשמל, איטום גג) פותחים פרויקט גבייה, והמערכת מחלקת את העלות בין הדירות ועוקבת אחרי התשלומים."
-            action={<button onClick={openNewLevy} className="btn btn-primary"><PlusCircle size={16} /> פתיחת פרויקט ראשון</button>}
+            title="אין גביות מיוחדות פעילות"
+            text="כשיש תיקון חריג או פרויקט (צנרת, לוח חשמל, שיפוץ לובי), פותחים גבייה מיוחדת: חד-פעמית או בפריסה לתשלומים."
+            action={<button onClick={openNewLevy} className="btn btn-primary"><PlusCircle size={16} /> פתיחת גבייה</button>}
           />
         </div>
       ) : (
         <div className="stack" style={{ gap: 16 }}>
-          {levies.map(levy => {
-            const paidCount = levy.paidApartmentIds?.length || 0;
-            const collected = paidCount * (levy.amountPerApt || 0);
-            const percent = Math.round((collected / (levy.totalAmount || 1)) * 100);
-
-            return (
-              <div key={`${levy.buildingId}-${levy.id}`} className="card stack">
-                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div className="stack" style={{ gap: 6 }}>
-                    <div className="row" style={{ gap: 8 }}>
-                      {isGlobalMode && (
-                        <BuildingName name={levy.buildingName} color={levy.buildingColor} onClick={() => setSelectedBuildingId(levy.buildingId)} />
-                      )}
-                      <span className="badge badge-neutral">נפתח {levy.createdAt || '—'}</span>
-                    </div>
-                    <h3 style={{ fontSize: '1.2rem' }}>{levy.title}</h3>
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
-                      {formatILS(collected)}
-                      <span className="muted" style={{ fontSize: '0.93rem', fontWeight: 400 }}> / {formatILS(levy.totalAmount)}</span>
-                    </div>
-                    <div className="muted" style={{ fontSize: '0.86rem' }}>
-                      {formatILS(levy.amountPerApt)} לדירה · {paidCount} מתוך {levy.apartments.length} שילמו
-                    </div>
-                  </div>
-                </div>
-
-                <div className="progress">
-                  <div className="progress-bar" style={{ width: `${Math.min(percent, 100)}%`, background: levy.buildingColor?.primary }} />
-                </div>
-
-                <div className="info-panel">
-                  <div className="field-label" style={{ marginBottom: 10 }}>לחצו על דירה כדי לסמן תשלום</div>
-                  <div className="row" style={{ gap: 8 }}>
-                    {levy.apartments.map(apt => {
-                      const isPaid = (levy.paidApartmentIds || []).includes(apt.id);
-                      return (
-                        <label key={apt.id} className="check-chip" title={apt.tenantName}>
-                          <input
-                            type="checkbox"
-                            checked={isPaid}
-                            onChange={() => toggleLevyPayment(levy.buildingId, levy.id, apt.id)}
-                          />
-                          דירה {apt.aptNum}
-                          {isPaid && <CheckCircle2 size={14} color="var(--success)" />}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {shown.map(levy => (
+            <LevyCard
+              key={`${levy.buildingId}-${levy.id}`}
+              levy={levy}
+              currentMonth={currentMonth}
+              isGlobalMode={isGlobalMode}
+              onPickBuilding={() => setSelectedBuildingId(levy.buildingId)}
+              onEdit={() => setForm({ buildingId: levy.buildingId, levy })}
+              onStatus={(status) => setLevyStatus(levy.buildingId, levy.id, status)}
+              onCell={(unitId, month, current) => setLevyPayment(levy.buildingId, levy.id, unitId, month, NEXT_STATUS[current || 'none'])}
+            />
+          ))}
         </div>
       )}
 
-      <Modal isOpen={showAddModal} onClose={closeModal} title="פרויקט גבייה חדש" subtitle={targetBuilding ? <><BuildingName name={targetBuilding.name} color={targetBuilding.color} /> · העלות תחולק בין הדירות</> : null}>
-        <form onSubmit={handleCreateLevy} className="form-stack">
-
-          <Field label="שם הפרויקט">
-            <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="למשל: תיקון פיצוץ צנרת ראשי" />
-          </Field>
-
-          <div className="field">
-            <span className="field-label">אופן החישוב</span>
-            <div className="choice-grid">
-              <button type="button" className={`choice${splitMode === 'total' ? ' is-active' : ''}`} onClick={() => setSplitMode('total')}>
-                עלות כוללת<small>מתחלקת שווה בין הדירות</small>
-              </button>
-              <button type="button" className={`choice${splitMode === 'perApt' ? ' is-active' : ''}`} onClick={() => setSplitMode('perApt')}>
-                סכום קבוע לדירה<small>כל דירה משלמת אותו סכום</small>
-              </button>
-            </div>
-          </div>
-
-          {splitMode === 'total' ? (
-            <Field
-              label="עלות כוללת (₪)"
-              hint={totalCost && aptCount ? `כ-${formatILS((parseFloat(totalCost) || 0) / aptCount)} לכל אחת מ-${aptCount} הדירות` : undefined}
-            >
-              <input type="number" required min="1" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} className="input" placeholder="3000" />
-            </Field>
-          ) : (
-            <Field
-              label="סכום לדירה (₪)"
-              hint={amountPerApt && aptCount ? `סך הכל ${formatILS((parseFloat(amountPerApt) || 0) * aptCount)} מ-${aptCount} דירות` : undefined}
-            >
-              <input type="number" required min="1" value={amountPerApt} onChange={(e) => setAmountPerApt(e.target.value)} className="input" placeholder="250" />
-            </Field>
-          )}
-
-          {aptCount === 0 && (
-            <div className="alert alert-warning">בבניין הזה עדיין אין דירות רשומות. הוסיפו דירות במסך הדיירים לפני פתיחת הגבייה.</div>
-          )}
-
-          <div className="modal-actions">
-            <button type="submit" className="btn btn-primary">פתיחת הפרויקט</button>
-            <button type="button" onClick={closeModal} className="btn btn-secondary">ביטול</button>
-          </div>
-        </form>
+      <Modal
+        isOpen={!!form}
+        onClose={() => setForm(null)}
+        title={form?.levy ? `עריכת גבייה · ${form.levy.name}` : 'גבייה מיוחדת חדשה'}
+        subtitle={formBuilding ? <BuildingName name={formBuilding.name} color={formBuilding.color} /> : null}
+      >
+        {formBuilding && (
+          <LevyForm
+            building={formBuilding}
+            initial={form.levy ? stripView(form.levy) : {}}
+            currentMonth={currentMonth}
+            submitText="פתיחת הגבייה"
+            onCancel={() => setForm(null)}
+            onSubmit={(data) => {
+              if (form.levy) updateLevy(form.buildingId, form.levy.id, data);
+              else addLevy(form.buildingId, data);
+              setForm(null);
+            }}
+          />
+        )}
       </Modal>
     </>
+  );
+}
+
+// שדות התצוגה שנוספו לגבייה ברשימה — לא נשמרים
+function stripView(l) {
+  const { building: _b, totals: _t, buildingId: _i, buildingName: _n, buildingColor: _c, ...data } = l;
+  return data;
+}
+
+function LevyCard({ levy, currentMonth, isGlobalMode, onPickBuilding, onEdit, onStatus, onCell }) {
+  const { totals } = levy;
+  const months = totals.months;
+  const units = totals.units;
+
+  return (
+    <div className={`card stack${levy.status !== 'active' ? ' is-closed' : ''}`} style={{ gap: 14 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="row" style={{ gap: 8 }}>
+            {isGlobalMode && <BuildingName name={levy.buildingName} color={levy.buildingColor} onClick={onPickBuilding} />}
+            <span className="badge badge-neutral">{modeText(levy, currentMonth)}</span>
+            {levy.includesCommercial && <span className="badge badge-gold"><Store size={12} /> כולל מסחר</span>}
+            {levy.origin === 'auto_detected' && <span className="badge badge-petrol">זוהתה בחיובית</span>}
+            {levy.status !== 'active' && <span className="badge badge-warning">{LEVY_STATUS[levy.status]}</span>}
+          </div>
+          <h3 style={{ fontSize: '1.2rem' }}>{levy.name}</h3>
+          {levy.purpose && <p className="section-sub" style={{ margin: 0 }}>{levy.purpose}</p>}
+        </div>
+        <div style={{ textAlign: 'left' }}>
+          <div className="kpi-value" style={{ fontSize: '1.4rem' }}>
+            {formatILS(totals.collected)}
+            <span className="muted" style={{ fontSize: '0.93rem', fontWeight: 400 }}> / {formatILS(totals.target)}</span>
+          </div>
+          <div className="muted" style={{ fontSize: '0.86rem' }}>{units.length} יחידות משתתפות · {totals.percent}%</div>
+        </div>
+      </div>
+
+      <div className="progress">
+        <div className="progress-bar" style={{ width: `${Math.min(totals.percent, 100)}%`, background: levy.buildingColor?.primary }} />
+      </div>
+
+      <div className="table-wrap levy-matrix">
+        <table className="data-table data-table-compact">
+          <thead>
+            <tr>
+              <th>יחידה</th>
+              {months.map(m => <th key={m} className="col-center">{levy.mode === 'monthly' ? monthName(m).slice(0, 3) : formatMonth(m)}</th>)}
+              <th className="num">שולם</th>
+              <th className="num">חוב</th>
+            </tr>
+          </thead>
+          <tbody>
+            {units.map(u => {
+              const bal = unitBalance(levy, u, currentMonth);
+              return (
+                <tr key={u.id}>
+                  <td className="cell-strong" style={{ whiteSpace: 'nowrap' }}>
+                    {unitLabel(u)}
+                    <span className="cell-sub">{unitDisplayName(u)}{isCommercial(u) ? ` · ${formatILS(amountFor(levy, u))}` : ''}</span>
+                  </td>
+                  {months.map(m => {
+                    const st = paymentOf(levy, u.id, m)?.status || null;
+                    const future = m > currentMonth;
+                    return (
+                      <td key={m} className="col-center">
+                        <button
+                          type="button"
+                          className={`levy-cell${st ? ` is-${st}` : ''}${future ? ' is-future' : ''}`}
+                          onClick={() => onCell(u.id, m, st)}
+                          title={`${unitLabel(u)} · ${formatMonth(m)} · לחיצה: ${st === 'paid' ? 'סימון כנכשל' : st === 'failed' ? 'ניקוי' : 'סימון כשולם'}`}
+                          aria-label={`${unitLabel(u)} ${formatMonth(m)} ${st === 'paid' ? 'שולם' : st === 'failed' ? 'נכשל' : 'לא שולם'}`}
+                        >
+                          {st === 'paid' ? <CheckCircle2 size={16} /> : st === 'failed' ? <XCircle size={16} /> : future ? '·' : '—'}
+                        </button>
+                      </td>
+                    );
+                  })}
+                  <td className="num amount-in">{formatILS(bal.paid)}</td>
+                  <td className="num">{bal.owed > 0 ? <span className="amount-out">{formatILS(bal.owed)}</span> : <span className="muted">—</span>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted" style={{ fontSize: '0.84rem', margin: 0 }}>
+        תשלומים מחיובית מסומנים אוטומטית בקליטת הקובץ. לחיצה על תא מסמנת ידנית: שולם ← נכשל ← ריק.
+      </p>
+
+      <div className="row" style={{ gap: 8 }}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit}><Pencil size={14} /> עריכה</button>
+        {levy.status === 'active' ? (
+          <>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onStatus('completed')}>סימון כהושלמה</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onStatus('cancelled')}>ביטול הגבייה</button>
+          </>
+        ) : (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onStatus('active')}>החזרה לפעילה</button>
+        )}
+      </div>
+    </div>
   );
 }
