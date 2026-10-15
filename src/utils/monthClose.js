@@ -18,7 +18,7 @@ export function getMonthClose(building, month) {
 // המרה חד-פעמית: בניין שסומן "מעודכן" במערכת הקודמת — החודש הנוכחי שלו נחשב סגור
 export function migrateMonthClose(building, month) {
   if (building.monthClose || !building.statusMonthUpdated) return building;
-  const done = { done: true, auto: false, note: 'סומן לפני המעבר לסגירת חודש' };
+  const done = { done: true, auto: false, legacy: true };
   const { statusMonthUpdated: _legacy, ...rest } = building;
   return { ...rest, monthClose: { [month]: { bank: done, hiyuvit: done, receipts: done, expenses: done } } };
 }

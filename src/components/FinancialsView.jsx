@@ -145,6 +145,8 @@ function Transactions() {
       return rec.done ? `✓ אושר · ${count}` : count;
     }
     if (!rec.done) return 'הקובץ עוד לא הועלה';
+    // שלבים שסומנו בהמרה מהסימון הישן ("מעודכן") — בלי פירוט
+    if (rec.legacy || (rec.note || '').startsWith('סומן לפני')) return '✓ אושר';
     // הועלה קובץ — מה נקלט ממנו; סומן ידנית — מה שאושר (למשל "אין תנועות בבנק החודש")
     const step = CLOSE_STEPS.find(x => x.id === stepId);
     return `✓ אושר · ${rec.note || step.manualLabel}`;

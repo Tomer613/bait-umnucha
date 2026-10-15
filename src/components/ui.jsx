@@ -50,7 +50,7 @@ export function BuildingAvatar({ name, color, size = 'md' }) {
 export function AllBuildingsAvatar({ size = 'md' }) {
   return (
     <span className={`bavatar bavatar--${size} bavatar--all`} aria-hidden="true">
-      <span className="bavatar-num"><LayoutGrid size={size === 'sm' ? 11 : 15} /></span>
+      <span className="bavatar-num"><LayoutGrid size={{ sm: 11, md: 15, lg: 22, xl: 30 }[size] || 15} /></span>
     </span>
   );
 }

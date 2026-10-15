@@ -5,8 +5,8 @@
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { CloudUpload, Mail, MessageSquareReply, Wrench, Wallet, PartyPopper, ChevronLeft } from 'lucide-react';
-import { BuildingAvatar } from './ui';
+import { CloudUpload, Mail, MessageSquareReply, Wrench, Wallet, PartyPopper, ChevronLeft, LayoutGrid } from 'lucide-react';
+import { BuildingAvatar, AllBuildingsAvatar } from './ui';
 import { formatFormattedDate } from '../utils/hebrewDate';
 import { computeTasks, countTaskItems, DEFAULT_LOW_BALANCE, DEFAULT_CHRONIC_MONTHS } from '../utils/tasks';
 
@@ -63,8 +63,14 @@ export default function MasterDashboard() {
 
   return (
     <div className="page">
-      {/* תדריך */}
+      {/* תדריך — עם "אזור זהות": שלט הבניין, או "כל הבניינים" */}
       <div className="brief">
+        <div className="brief-identity">
+          {currentBuilding
+            ? <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} size="xl" />
+            : <AllBuildingsAvatar size="xl" />}
+          <span className="brief-identity-name">{currentBuilding ? currentBuilding.name : 'כל הבניינים'}</span>
+        </div>
         <div className="brief-text">
           <span className="brief-date">{formatFormattedDate(new Date(), systemSettings?.hebrewDateFormat || 'both')}</span>
           <h1 className="brief-title">{greeting()}{firstName ? `, ${firstName}` : ''}</h1>
@@ -73,14 +79,21 @@ export default function MasterDashboard() {
               ? `הכל מטופל${currentBuilding ? ` בבניין ${currentBuilding.name}` : ''}. אין משימות פתוחות.`
               : `${total === 1 ? 'דבר אחד מחכה' : `${total} דברים מחכים`} לטיפול${currentBuilding ? ` בבניין ${currentBuilding.name}` : ` ב-${buildings.length} הבניינים`}.`}
           </p>
-          {otherTasks > 0 && (
-            <button type="button" className="brief-more" onClick={() => setSelectedBuildingId('all')}>
-              יש עוד {otherTasks} {otherTasks === 1 ? 'משימה' : 'משימות'} בבניינים אחרים · הצגת כל המשימות ←
-            </button>
-          )}
         </div>
-        {currentBuilding && <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} size="lg" />}
       </div>
+
+      {/* כשמוצג בניין בודד — פס בולט מחוץ לתדריך, עם מעבר לכל הבניינים */}
+      {currentBuilding && (
+        <div className="scope-bar">
+          <span className="scope-bar-text">
+            מוצגות רק המשימות של <strong>{currentBuilding.name}</strong>
+            {otherTasks > 0 && <> · בשאר הבניינים יש עוד <strong>{otherTasks}</strong> {otherTasks === 1 ? 'משימה' : 'משימות'}</>}
+          </span>
+          <button type="button" className="btn btn-gold" onClick={() => setSelectedBuildingId('all')}>
+            <LayoutGrid size={17} /> מעבר לכל הבניינים
+          </button>
+        </div>
+      )}
 
       {tasks.length === 0 ? (
         <div className="card">

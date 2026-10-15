@@ -527,6 +527,7 @@ a { color: var(--petrol-600); }
   /* מספר מובלט */
   text-shadow: -1px -1px 0 #FFFFFF, 1px 1.5px 1.5px rgba(0, 0, 0, 0.25);
 }
+.bavatar--xl { --s: 84px; }
 .bavatar--lg { --s: 58px; }
 .title-with-plaque { display: inline-flex; align-items: center; gap: 14px; }
 .modal-sub .bname { vertical-align: middle; }
@@ -1425,8 +1426,37 @@ html[data-density="spacious"] { --space-page: 28px; --space-card: 30px; --space-
 .brief-date { font-size: 0.86rem; font-weight: 600; color: var(--gold-400); }
 .brief-title { font-size: 2rem; font-weight: 700; color: #FFFFFF; line-height: 1.2; margin-top: 2px; }
 .brief-sub { font-size: 1.05rem; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
-.brief-more { margin-top: 10px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.28); color: #FFFFFF; font-weight: 700; font-size: 0.9rem; padding: 7px 14px; border-radius: var(--radius-full); cursor: pointer; }
-.brief-more:hover { background: rgba(255, 255, 255, 0.24); }
+/* אזור הזהות בתדריך: שלט גדול + שם, מופרד בקו מהטקסט */
+.brief { justify-content: flex-start; gap: 24px; }
+.brief-identity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-inline-end: 24px;
+  border-inline-end: 1px solid rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+  min-width: 112px;
+}
+.brief-identity-name { font-weight: 700; font-size: 0.95rem; color: #FFFFFF; text-align: center; white-space: nowrap; }
+
+/* פס היקף — מחוץ לתדריך, כשמוצג בניין בודד */
+.scope-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px 12px 18px;
+  padding-inline-start: 18px;
+  border-radius: 16px;
+  background: var(--gold-100);
+  border: 1.5px solid var(--gold-400);
+}
+.scope-bar-text { flex: 1; min-width: 220px; font-size: 1rem; color: var(--gold-700); font-weight: 600; }
+.scope-bar-text strong { color: var(--ink-900); }
+.scope-bar .btn { margin-bottom: 4px; }
 
 .task-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 18px; align-items: start; }
 .task-card {
@@ -1459,7 +1489,11 @@ html[data-density="spacious"] { --space-page: 28px; --space-card: 30px; --space-
 .task-item .btn { margin-bottom: 3px; }
 .task-more { margin: 4px 14px 12px; }
 @media (max-width: 640px) {
-  .brief { padding: 18px; }
+  .brief { padding: 18px; flex-direction: column; align-items: flex-start; gap: 14px; }
+  .brief-identity { flex-direction: row; gap: 12px; padding-inline-end: 0; border-inline-end: none; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.18); width: 100%; min-width: 0; }
+  .brief-identity .bavatar--xl { --s: 60px; }
+  .brief-identity-name { font-size: 1.1rem; }
+  .scope-bar .btn { width: 100%; }
   .brief-title { font-size: 1.5rem; }
   .task-item { flex-wrap: wrap; }
 }
