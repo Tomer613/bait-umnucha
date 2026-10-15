@@ -215,10 +215,12 @@ export function htmlToText(html, { whatsapp = false } = {}) {
 // ספרייה: קטגוריות ותבניות (נשמרת בדפדפן; נערכת במסך ההגדרות)
 // --------------------------------------------------------------------------
 export const RECYCLE_DAYS = 30;
+export const LIBRARY_VERSION = 1; // מעלים כשתבניות ההתחלה משתנות — ספרייה שלא נערכה מתעדכנת
 export const MAX_VERSIONS = 5;
 
 export function initialLibrary(categories, templates) {
   return {
+    version: LIBRARY_VERSION,
     categories: categories.map((c, i) => ({ ...c, order: i })),
     templates: templates.map((t, i) => ({ ...t, order: i, isFavorite: false, deletedAt: null, updatedAt: null, versions: [] })),
     recent: []

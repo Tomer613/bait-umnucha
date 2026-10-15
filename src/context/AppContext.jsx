@@ -165,7 +165,11 @@ export function AppProvider({ children }) {
   const [noticeLibrary, setNoticeLibrary] = useState(() => {
     try {
       const saved = localStorage.getItem(NOTICES_STORAGE_KEY);
-      if (saved) return nt.purgeRecycle(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const untouched = !parsed.templates?.some(t => t.updatedAt || t.deletedAt) && parsed.categories?.length === NOTICE_CATEGORIES.length;
+        if ((parsed.version || 0) >= nt.LIBRARY_VERSION || !untouched) return nt.purgeRecycle(parsed);
+      }
     } catch (e) {
       console.error('Failed to load notice library:', e);
     }

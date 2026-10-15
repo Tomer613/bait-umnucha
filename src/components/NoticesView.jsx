@@ -187,7 +187,7 @@ export default function NoticesView() {
   };
 
   const guard = (action) => {
-    if (unfilled.length) setWarnUnfilled(action);
+    if (unfilled.length) setWarnUnfilled(() => action); // פונקציה נשמרת כערך, לא מורצת
     else action();
   };
 

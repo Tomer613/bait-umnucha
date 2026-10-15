@@ -15,6 +15,7 @@ import DisplaySettings from './DisplaySettings';
 import ExpenseCategoriesSettings from './ExpenseCategoriesSettings';
 import IssueSettings from './IssueSettings';
 import ReportPresetsSettings from './ReportPresetsSettings';
+import NoticeLibrarySettings from './NoticeLibrarySettings';
 import {
   Building2,
   Sliders,
@@ -34,7 +35,8 @@ import {
   Landmark,
   Tags,
   MessageSquare,
-  Bookmark
+  Bookmark,
+  FileText
 } from 'lucide-react';
 
 export default function SettingsView({ onOpenAddBuilding }) {
@@ -345,6 +347,7 @@ export default function SettingsView({ onOpenAddBuilding }) {
           { id: 'categories', label: 'קטגוריות וקליטת קבצים', icon: Tags },
           { id: 'issues', label: 'פניות', icon: MessageSquare },
           { id: 'reports', label: 'דוחות', icon: Bookmark },
+          { id: 'notices', label: 'תבניות מודעות', icon: FileText },
           { id: 'display', label: 'תצוגה ונוחות קריאה', icon: Eye },
           { id: 'backup', label: 'גיבוי ושחזור', icon: ShieldCheck }
         ]}
@@ -1115,6 +1118,8 @@ export default function SettingsView({ onOpenAddBuilding }) {
       {innerTab === 'issues' && <IssueSettings />}
 
       {innerTab === 'reports' && <ReportPresetsSettings />}
+
+      {innerTab === 'notices' && <NoticeLibrarySettings />}
 
       {innerTab === 'display' && <DisplaySettings />}
 
