@@ -1,23 +1,28 @@
 // ==========================================================================
 // בית ומנוחה - ניהול קטגוריות הוצאה (הגדרות)
 // הרשימה משמשת בהזנת הוצאות ובדוח ההוצאות השנתי. "אחר" קבוע בסוף ואינו ניתן למחיקה.
+// כללי הסיווג האוטומטי באותו עמוד, כי כל כלל מפנה לקטגוריה ונמחק יחד איתה.
 // ==========================================================================
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { OTHER_CATEGORY } from '../data/initialData';
 import { activeTransactions } from '../utils/ledger';
-import { Plus, X, Tags, Lock, Wand2, Landmark, UserRound } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
+import { SettingsCard } from './ui';
+import { Plus, X, Tags, Lock, Wand2 } from 'lucide-react';
 
 export default function ExpenseCategoriesSettings() {
   const { buildings, expenseCategories, addExpenseCategory, removeExpenseCategory, systemSettings, updateSystemSettings } = useApp();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
+  const [showUsage, setShowUsage] = useState(false);
+  const [confirm, setConfirm] = useState(null); // { title, question, description, subDescription, onConfirm }
 
-  // בכמה הוצאות כל קטגוריה בשימוש (בכל הבניינים)
+  // הוצאות רשומות בכל הבניינים — לספירת שימוש בקטגוריות ובכללים
+  const expenses = buildings.flatMap(b => activeTransactions(b).filter(tx => tx.direction === 'out'));
+  const rules = systemSettings.categoryRules || [];
   const usage = {};
-  buildings.forEach(b => activeTransactions(b).forEach(tx => {
-    if (tx.direction === 'out') usage[tx.category] = (usage[tx.category] || 0) + 1;
-  }));
+  expenses.forEach(tx => { usage[tx.category] = (usage[tx.category] || 0) + 1; });
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -33,17 +38,12 @@ export default function ExpenseCategoriesSettings() {
   };
 
   return (
-    <div className="stack" style={{ gap: 18, maxWidth: 820 }}>
-      <div className="card stack" style={{ gap: 14 }}>
-        <div className="row" style={{ gap: 12, flexWrap: 'nowrap' }}>
-          <span className="kpi-icon"><Tags size={18} /></span>
-          <div>
-            <h3 className="section-title">קטגוריות הוצאה</h3>
-            <p className="section-sub">
-              מופיעות בהזנת הוצאה ובדוח ההוצאות השנתי של כל הבניינים. מחיקת קטגוריה לא מוחקת הוצאות שכבר נרשמו בה, והן ימשיכו להופיע בדוח.
-            </p>
-          </div>
-        </div>
+    <>
+      <SettingsCard
+        icon={Tags}
+        title="רשימת הקטגוריות"
+        sub="מופיעות בהזנת הוצאה ובדוח ההוצאות השנתי של כל הבניינים. מחיקת קטגוריה מוחקת גם את כללי הסיווג האוטומטי שלה (בכרטיס הבא), אבל לא את ההוצאות שכבר נרשמו בה."
+      >
 
         <form onSubmit={handleAdd} className="row" style={{ flexWrap: 'nowrap' }}>
           <input
@@ -61,21 +61,42 @@ export default function ExpenseCategoriesSettings() {
         </form>
         {error && <div className="alert alert-error">{error}</div>}
 
+        <UsageToggle
+          checked={showUsage}
+          onChange={setShowUsage}
+          hint="כמה הוצאות רשומות כרגע בכל קטגוריה בכל הבניינים, וכמה כללי סיווג אוטומטי מפנים אליה. עוזר להחליט אם קטגוריה מיותרת לפני מחיקה."
+        />
+
         <div className="category-list">
           {expenseCategories.map(cat => {
             const isOther = cat === OTHER_CATEGORY;
             const count = usage[cat] || 0;
+            const catRules = rules.filter(r => r.category === cat);
             return (
               <div key={cat} className={`category-item${isOther ? ' is-locked' : ''}`}>
-                <span className="category-name">{cat}</span>
-                <span className="category-count">{count ? `${count} הוצאות` : 'לא בשימוש'}</span>
+                <span className="category-text">
+                  <span className="category-name" title={cat}>{cat}</span>
+                  {showUsage && (
+                    <span className="category-count">
+                      {count ? `${count} הוצאות` : 'לא בשימוש כרגע'}
+                      {catRules.length > 0 && ` · ${catRules.length === 1 ? 'כלל סיווג אחד' : `${catRules.length} כללי סיווג`}`}
+                    </span>
+                  )}
+                </span>
                 {isOther ? (
                   <span className="category-lock" title="קטגוריה קבועה"><Lock size={14} /></span>
                 ) : (
                   <button
                     type="button"
                     className="btn btn-danger btn-sm btn-icon"
-                    onClick={() => removeExpenseCategory(cat)}
+                    onClick={() => setConfirm({
+                      title: 'מחיקת קטגוריה',
+                      question: `למחוק את הקטגוריה "${cat}"?`,
+                      description: <CategoryDeleteImpact cat={cat} expenseCount={count} rules={catRules} />,
+                      subDescription: '',
+                      confirmText: catRules.length ? 'מחיקת הקטגוריה והכללים' : 'מחיקת הקטגוריה',
+                      onConfirm: () => removeExpenseCategory(cat)
+                    })}
                     title={`הסרת "${cat}" מהרשימה`}
                     aria-label={`הסרת ${cat}`}
                   >
@@ -86,64 +107,34 @@ export default function ExpenseCategoriesSettings() {
             );
           })}
         </div>
-      </div>
+      </SettingsCard>
 
       <CategoryRules
-        rules={systemSettings.categoryRules || []}
+        rules={rules}
         categories={expenseCategories}
+        expenses={expenses}
+        askConfirm={setConfirm}
         onChange={(categoryRules) => updateSystemSettings({ categoryRules })}
       />
 
-      <NamesCard
-        icon={Landmark}
-        title="הפקדת חיובית בדו״ח העו״ש"
-        text="הכנסה שהתיאור שלה מכיל אחד מהשמות תסווג כ״גבייה מחיובית״. בבניינים שונים ההפקדה מופיעה בשמות שונים."
-        placeholder="למשל: אוקס פינטק"
-        names={systemSettings.hiyuvitDepositNames || []}
-        onChange={(hiyuvitDepositNames) => updateSystemSettings({ hiyuvitDepositNames })}
+      <ConfirmModal
+        isOpen={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => confirm.onConfirm()}
+        title={confirm?.title}
+        question={confirm?.question}
+        description={confirm?.description}
+        subDescription={confirm?.subDescription}
+        confirmText={confirm?.confirmText}
       />
-
-      <NamesCard
-        icon={UserRound}
-        title="העברות למנהל בדו״ח העו״ש"
-        text="העברה שהתיאור שלה מכיל אחד מהשמות מזוהה כהחזר על הוצאות שהמנהל שילם מכיסו: היא סוגרת את החוב אליו ולא נספרת שוב כהוצאה."
-        placeholder="למשל: כהן ישי"
-        names={systemSettings.managerBankNames || []}
-        onChange={(managerBankNames) => updateSystemSettings({ managerBankNames })}
-      />
-
-      <div className="card stack" style={{ gap: 14 }}>
-        <div className="row" style={{ gap: 12, flexWrap: 'nowrap' }}>
-          <span className="kpi-icon"><Wand2 size={18} /></span>
-          <div>
-            <h3 className="section-title">זיהוי גביות מיוחדות בקובץ חיובית</h3>
-            <p className="section-sub">חיוב שאינו דמי ועד ומופיע אצל הרבה דיירים מוצג כחשד לגבייה מיוחדת חדשה.</p>
-          </div>
-        </div>
-        <div className="field-row">
-          <label className="field">
-            <span className="field-label">סף זיהוי</span>
-            <select className="select" value={String(systemSettings.levyDetectThreshold ?? 0.3)} onChange={(e) => updateSystemSettings({ levyDetectThreshold: parseFloat(e.target.value) })}>
-              {[0.2, 0.3, 0.4, 0.5].map(v => <option key={v} value={String(v)}>אותו סכום אצל {Math.round(v * 100)}% מהדיירים לפחות{v === 0.3 ? ' (מומלץ)' : ''}</option>)}
-            </select>
-            <span className="field-hint">סכומים שמתחת לסף מגיעים לרשימת "דורשים שיוך".</span>
-          </label>
-          <label className="field">
-            <span className="field-label">אישור שיוך לגבייה קיימת</span>
-            <select className="select" value={systemSettings.levyConfirm || 'first_time'} onChange={(e) => updateSystemSettings({ levyConfirm: e.target.value })}>
-              <option value="first_time">רק בפעם הראשונה לכל גבייה (מומלץ)</option>
-              <option value="always">בכל קליטה</option>
-            </select>
-          </label>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
 
 // כללי סיווג אוטומטי בקליטת עו"ש (אפיון 04, סעיף 5.6) — נערכים רק כאן
-function CategoryRules({ rules, categories, onChange }) {
+function CategoryRules({ rules, categories, expenses, askConfirm, onChange }) {
   const [contains, setContains] = useState('');
+  const [showUsage, setShowUsage] = useState(false);
   const [category, setCategory] = useState(categories[0] || '');
 
   const add = (e) => {
@@ -155,16 +146,7 @@ function CategoryRules({ rules, categories, onChange }) {
   };
 
   return (
-    <div className="card stack" style={{ gap: 14 }}>
-      <div className="row" style={{ gap: 12, flexWrap: 'nowrap' }}>
-        <span className="kpi-icon"><Wand2 size={18} /></span>
-        <div>
-          <h3 className="section-title">כללי סיווג אוטומטי</h3>
-          <p className="section-sub">
-            בקליטת דו״ח עו״ש, הוצאה שהתיאור שלה מכיל את הטקסט תסווג אוטומטית לקטגוריה. אפשר תמיד לשנות קטגוריה של תנועה בודדת בתצוגה המקדימה.
-          </p>
-        </div>
-      </div>
+    <SettingsCard icon={Wand2} title="כללי סיווג אוטומטי" sub="בקליטת דו״ח עו״ש, הוצאה שהתיאור שלה מכיל את הטקסט תסווג אוטומטית לקטגוריה. אפשר תמיד לשנות קטגוריה של תנועה בודדת בתצוגה המקדימה. כל כלל קשור לקטגוריה מהכרטיס הקודם, ונמחק יחד איתה.">
       <form onSubmit={add} className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
         <input type="text" className="input" style={{ flex: '1 1 200px' }} value={contains} onChange={(e) => setContains(e.target.value)} placeholder="התיאור מכיל, למשל: י.ד. שירותי" aria-label="טקסט בתיאור" />
         <select className="select" style={{ flex: '1 1 200px' }} value={category} onChange={(e) => setCategory(e.target.value)} aria-label="קטגוריה">
@@ -172,53 +154,85 @@ function CategoryRules({ rules, categories, onChange }) {
         </select>
         <button type="submit" className="btn btn-primary" disabled={!contains.trim()}><Plus size={16} /> הוספת כלל</button>
       </form>
+      {rules.length > 0 && (
+        <UsageToggle
+          checked={showUsage}
+          onChange={setShowUsage}
+          hint="כמה הוצאות רשומות כרגע מכילות את הטקסט של הכלל בתיאור, בכל הבניינים. כלל שלא תופס אף הוצאה כנראה מיותר או מנוסח לא נכון."
+        />
+      )}
       <div className="category-list rule-list">
         {rules.length === 0 && <span className="muted">אין כללים.</span>}
-        {rules.map(r => (
+        {rules.map(r => {
+          const count = showUsage ? expenses.filter(tx => (tx.description || '').includes(r.contains)).length : 0;
+          return (
           <div key={r.id} className="category-item">
-            <span className="category-name">"{r.contains}" ← {r.category}</span>
-            <button type="button" className="btn btn-danger btn-sm btn-icon" onClick={() => onChange(rules.filter(x => x.id !== r.id))} title="מחיקת הכלל" aria-label={`מחיקת הכלל ${r.contains}`}>
+            <span className="category-text">
+              <span className="category-name" title={`"${r.contains}" ← ${r.category}`}>"{r.contains}" ← {r.category}</span>
+              {showUsage && <span className="category-count">{count ? `${count} הוצאות` : 'לא בשימוש כרגע'}</span>}
+            </span>
+            <button type="button" className="btn btn-danger btn-sm btn-icon" onClick={() => askConfirm({
+              title: 'מחיקת כלל סיווג',
+              question: `למחוק את הכלל "${r.contains}" ← ${r.category}?`,
+              description: 'הוצאות שכבר נקלטו לא ישתנו.',
+              subDescription: 'בקליטות הבאות, הוצאות עם הטקסט הזה לא יסווגו אוטומטית לקטגוריה.',
+              onConfirm: () => onChange(rules.filter(x => x.id !== r.id))
+            })} title="מחיקת הכלל" aria-label={`מחיקת הכלל ${r.contains}`}>
               <X size={14} />
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
-    </div>
+    </SettingsCard>
   );
 }
 
-// רשימת שמות לזיהוי בעו"ש: הפקדת חיובית (סעיף 7.4), העברות למנהל (סעיף 7.5)
-function NamesCard({ icon: Icon, title, text, placeholder, names, onChange }) {
-  const [name, setName] = useState('');
-  const add = (e) => {
-    e.preventDefault();
-    const clean = name.trim();
-    if (!clean || names.includes(clean)) return;
-    onChange([...names, clean]);
-    setName('');
-  };
-
+// מה קורה במחיקת קטגוריה: מה נמחק ומה נשאר
+function CategoryDeleteImpact({ cat, expenseCount, rules }) {
   return (
-    <div className="card stack" style={{ gap: 14 }}>
-      <div className="row" style={{ gap: 12, flexWrap: 'nowrap' }}>
-        <span className="kpi-icon"><Icon size={18} /></span>
-        <div>
-          <h3 className="section-title">{title}</h3>
-          <p className="section-sub">{text}</p>
-        </div>
+    <div className="stack" style={{ gap: 10 }}>
+      <div className={`alert ${rules.length ? 'alert-error' : 'alert-info'} stack`} style={{ gap: 6, alignItems: 'stretch' }}>
+        <strong>מה יימחק</strong>
+        <span>• הקטגוריה "{cat}" תוסר מהרשימה ולא תופיע יותר בהזנת הוצאה.</span>
+        {rules.length > 0 && (
+          <>
+            <span>
+              • {rules.length === 1 ? 'כלל סיווג אוטומטי אחד' : `${rules.length} כללי סיווג אוטומטי`} שמפנים אליה יימחקו גם הם.
+              {' '}הכללים מופיעים בכרטיס <strong>"כללי סיווג אוטומטי"</strong> שמתחת לרשימת הקטגוריות:
+            </span>
+            <div className="row" style={{ gap: 6, paddingInlineStart: 12 }}>
+              {rules.map(r => <span key={r.id} className="badge">"{r.contains}" ← {r.category}</span>)}
+            </div>
+            <span>מהקליטה הבאה, הוצאות עם הטקסטים האלה יסווגו ל"תחזוקה שוטפת והוצאות חריגות", ואפשר יהיה לשנות להן קטגוריה ידנית בתצוגה המקדימה.</span>
+          </>
+        )}
       </div>
-      <form onSubmit={add} className="row" style={{ flexWrap: 'nowrap' }}>
-        <input type="text" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={placeholder} aria-label={title} />
-        <button type="submit" className="btn btn-primary" disabled={!name.trim()}><Plus size={16} /> הוספה</button>
-      </form>
-      <div className="row" style={{ gap: 8 }}>
-        {names.map(n => (
-          <span key={n} className="preset-chip">
-            <span style={{ padding: '0 6px' }}>{n}</span>
-            <button type="button" className="preset-remove" title="הסרה" onClick={() => onChange(names.filter(x => x !== n))}><X size={12} /></button>
-          </span>
-        ))}
+      <div className="alert alert-success stack" style={{ gap: 6, alignItems: 'stretch', fontWeight: 400 }}>
+        <strong>מה יישאר</strong>
+        <span>
+          {expenseCount
+            ? `• ${expenseCount === 1 ? 'ההוצאה הרשומה' : `${expenseCount} ההוצאות הרשומות`} בקטגוריה יישארו כמו שהן וימשיכו להופיע בדוח ההוצאות.`
+            : '• אין כרגע הוצאות רשומות בקטגוריה, כך שאף הוצאה לא מושפעת.'}
+        </span>
       </div>
     </div>
   );
 }
+
+// מתג הצגת שימוש בפועל — מוסתר כברירת מחדל כדי לא להעמיס על הרשימה
+function UsageToggle({ checked, onChange, hint }) {
+  return (
+    <div className="stack" style={{ gap: 4 }}>
+      <label className="row" style={{ gap: 10, cursor: 'pointer', flexWrap: 'nowrap' }}>
+        <span className="switch">
+          <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+          <span className="slider" />
+        </span>
+        <span className="field-label">{checked ? 'הסתר שימוש בפועל' : 'הצג שימוש בפועל'}</span>
+      </label>
+      {checked && <span className="field-hint">{hint}</span>}
+    </div>
+  );
+}
+

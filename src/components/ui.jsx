@@ -184,3 +184,20 @@ export function FlashMessage({ flash }) {
     </div>
   );
 }
+
+// כרטיס הגדרות אחיד: אייקון, כותרת, שורת הסבר ותוכן
+export function SettingsCard({ icon: Icon, title, sub, actions, children }) {
+  return (
+    <section className="card stack settings-card" style={{ gap: 14 }}>
+      <div className="row" style={{ gap: 12, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+        {Icon && <span className="kpi-icon"><Icon size={18} /></span>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 className="section-title">{title}</h3>
+          {sub && <p className="section-sub">{sub}</p>}
+        </div>
+        {actions}
+      </div>
+      {children}
+    </section>
+  );
+}

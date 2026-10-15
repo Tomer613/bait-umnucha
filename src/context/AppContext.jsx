@@ -385,8 +385,13 @@ export function AppProvider({ children }) {
     return true;
   };
 
+  // מחיקת קטגוריה מוחקת גם את כללי הסיווג האוטומטי שמפנים אליה
   const removeExpenseCategory = (name) => {
-    setSystemSettings(prev => ({ ...prev, expenseCategories: customCategories.filter(c => c !== name) }));
+    setSystemSettings(prev => ({
+      ...prev,
+      expenseCategories: customCategories.filter(c => c !== name),
+      categoryRules: (prev.categoryRules || []).filter(r => r.category !== name)
+    }));
   };
 
   // עדכון הגדרות מערכת
