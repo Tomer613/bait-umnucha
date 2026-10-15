@@ -50,7 +50,8 @@ export function computeTasks(scope, { currentMonth, lowBalance = DEFAULT_LOW_BAL
         key: `${b.id}-${a.id}`,
         building: b,
         detail: `דירה ${a.aptNum} · ${a.tenantName} · ${a.debtMonths.length} חודשים · ${formatILS(aptDebt(a))}`,
-        action: 'letter'
+        action: 'letter',
+        aptId: a.id
       }))
     });
   }

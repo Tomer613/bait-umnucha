@@ -56,7 +56,7 @@ export default function MasterDashboard() {
     setSelectedBuildingId(item.building.id);
     switch (item.action) {
       case 'intake': setActiveTab('finance'); break;
-      case 'letter': setLetterPreset('debt-2'); setActiveTab('reports', 'letters'); break;
+      case 'letter': setLetterPreset({ templateId: 'tpl-debt-warning', buildingId: item.building.id, apartmentId: item.aptId }); setActiveTab('reports', 'letters'); break;
       case 'issue': setActiveTab('issues'); break;
       case 'levy': setActiveTab('finance', 'levies'); break;
       case 'plans': setActiveTab('finance', 'plans'); break;

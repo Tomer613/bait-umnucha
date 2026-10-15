@@ -1609,3 +1609,119 @@ html[data-density="spacious"] { --space-page: 28px; --space-card: 30px; --space-
 .icon-link:hover { color: var(--petrol-600); }
 .preset-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--surface-3); color: var(--ink-600); }
 .preset-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--surface-3); border-radius: var(--radius-md); background: var(--surface); }
+
+/* ==========================================================================
+   מודעות ומכתבים (אפיון 03): דף A4 עם נייר המכתבים של "בית ומנוחה"
+   ========================================================================== */
+:root {
+  --brand-brown: #4A2621;
+  --brand-brown-2: #6B3A30;
+  --brand-gold: #C69A52;
+  --brand-gold-2: #E2BD7A;
+}
+.notices-split { display: grid; grid-template-columns: minmax(280px, 330px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.notices-split > .alert { grid-column: 1 / -1; }
+.notices-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.ns-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.notices-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.notices-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sheet-scroller { overflow-x: auto; padding: 6px 0 20px; }
+
+/* ספריית התבניות */
+.tpl-tree { display: flex; flex-direction: column; gap: 4px; }
+.tpl-group { display: flex; flex-direction: column; gap: 2px; }
+.tpl-group-title { font-size: 0.8rem; font-weight: 700; color: var(--ink-500); display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; }
+.tpl-cat { display: flex; align-items: center; gap: 4px; background: none; border: 0; padding: 6px 2px; font-weight: 700; color: var(--ink-800); cursor: pointer; text-align: right; font-size: 0.92rem; }
+.tpl-row { display: flex; align-items: center; gap: 4px; border-radius: 8px; padding: 0 4px 0 0; }
+.tpl-row.is-active { background: var(--petrol-50); }
+.tpl-row .tpl-name { flex: 1; background: none; border: 0; text-align: right; padding: 6px 8px; cursor: pointer; color: var(--ink-800); font-size: 0.9rem; border-radius: 8px; }
+.tpl-row .tpl-name:hover { background: var(--surface-2); }
+.tpl-row.is-active .tpl-name { font-weight: 700; color: var(--petrol-800); }
+.tpl-star { background: none; border: 0; color: var(--ink-300); cursor: pointer; padding: 4px; }
+.tpl-star.is-on { color: var(--gold-500); }
+.tpl-star.is-on svg { fill: currentColor; }
+.tpl-blank { background: none; border: 1px dashed var(--surface-3); padding: 6px 10px; cursor: pointer; font-size: 0.9rem; color: var(--ink-600); }
+.tpl-empty { font-size: 0.82rem; color: var(--ink-400); padding: 2px 22px 6px 0; }
+.log-row { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: none; border: 0; border-bottom: 1px solid var(--surface-3); padding: 6px 0; text-align: right; cursor: pointer; font-size: 0.88rem; }
+.log-row:last-child { border-bottom: 0; }
+.input.is-empty-field { background: #FFF9DB; border-color: #F2C94C; }
+
+/* סרגל העיצוב */
+.editor-toolbar { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 6px 8px; background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-md); position: sticky; top: 8px; z-index: 5; box-shadow: var(--shadow-xs); }
+.editor-toolbar button, .editor-toolbar select { display: inline-flex; align-items: center; gap: 4px; height: 32px; min-width: 32px; justify-content: center; background: none; border: 1px solid transparent; border-radius: 7px; color: var(--ink-700); cursor: pointer; font-size: 0.86rem; padding: 0 6px; }
+.editor-toolbar button:hover, .editor-toolbar select:hover { background: var(--surface-2); border-color: var(--surface-3); }
+.editor-toolbar select { border-color: var(--surface-3); padding: 0 8px; }
+.editor-toolbar .tb-red { color: #B3260A; }
+.editor-toolbar .tb-text { font-weight: 600; }
+.tb-sep { width: 1px; height: 20px; background: var(--surface-3); margin: 0 4px; }
+.tb-pop { position: relative; display: inline-flex; }
+.tb-popover { position: absolute; top: calc(100% + 6px); inset-inline-start: 0; z-index: 30; background: var(--surface); border: 1px solid var(--surface-3); border-radius: 10px; box-shadow: var(--shadow-md); padding: 10px; display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+.tb-popover label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; }
+.tb-popover input { width: 52px; height: 30px; border: 1px solid var(--surface-3); border-radius: 6px; padding: 0 6px; }
+.tb-popover.tb-list { flex-direction: column; align-items: stretch; padding: 6px; max-height: 320px; overflow: auto; }
+.tb-popover.tb-list button { justify-content: flex-start; height: auto; padding: 7px 10px; background: none; border: 0; border-radius: 6px; cursor: pointer; text-align: right; color: var(--ink-800); display: flex; gap: 6px; align-items: center; font-size: 0.88rem; }
+.tb-popover.tb-list button:hover { background: var(--surface-2); }
+.save-menu { inset-inline-start: auto; inset-inline-end: 0; }
+
+/* הדף */
+.notice-sheet {
+  width: 210mm; height: 297mm; margin: 0 auto; background: #FFFFFF; color: #1E1512;
+  box-shadow: 0 6px 30px rgba(20, 10, 5, 0.16); position: relative; overflow: hidden;
+  display: flex; flex-direction: column; font-family: 'Assistant', 'Rubik', 'Heebo', Arial, sans-serif;
+}
+.ns-head { position: relative; height: 46mm; flex: 0 0 auto; }
+.ns-arch { position: absolute; top: 0; left: 0; width: 84mm; height: 46mm; fill: var(--brand-brown); }
+.ns-brand { position: absolute; top: 6mm; left: 8mm; width: 56mm; display: flex; flex-direction: column; align-items: center; color: var(--brand-gold-2); }
+.ns-logo { width: 26mm; height: 22mm; object-fit: cover; object-position: center 55%; }
+.ns-brand-name { font-family: var(--font-brand); font-size: 17pt; line-height: 1.05; margin-top: 1mm; background: linear-gradient(180deg, var(--brand-gold-2), var(--brand-gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ns-brand-tag { font-size: 8pt; color: #E9D3B0; letter-spacing: 0.02em; }
+.ns-prefix { position: absolute; top: 9mm; right: 14mm; font-size: 10pt; color: #2B1A16; font-weight: 600; }
+.ns-date { position: absolute; top: 34mm; right: 18mm; font-size: 10pt; color: #5A4A44; }
+
+.ns-content { --fit: 1; flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 4mm 20mm 4mm; font-size: calc(13pt * var(--fit)); line-height: 1.6; display: flex; flex-direction: column; }
+.ns-title { font-family: var(--font-brand); font-weight: 400; text-align: center; color: var(--brand-brown); font-size: calc(24pt * var(--fit)); line-height: 1.25; margin: 0 0 2mm; padding-bottom: 3mm; position: relative; outline: none; }
+.ns-title::after { content: ""; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 34mm; height: 2px; background: linear-gradient(90deg, transparent, var(--brand-gold), transparent); }
+.ns-title:empty::before { content: attr(data-placeholder); color: #C9B8B0; }
+.ns-body { outline: none; flex: 0 1 auto; }
+.ns-body p { margin: 0 0 0.55em; }
+.ns-body h2 { font-size: 1.55em; font-weight: 800; color: var(--brand-brown); margin: 0.4em 0 0.3em; text-align: center; }
+.ns-body h3 { font-size: 1.22em; font-weight: 800; margin: 0.4em 0 0.3em; }
+.ns-body ul { margin: 0 0 0.6em; padding-inline-start: 1.4em; }
+.ns-body li { margin-bottom: 0.25em; }
+.ns-body img, .ns-body .notice-img { max-width: 100%; max-height: 80mm; border-radius: 3mm; }
+.ns-body table, .notice-table { border-collapse: collapse; margin: 0.4em auto 0.8em; min-width: 60%; font-size: 0.92em; }
+.ns-body th, .ns-body td { border: 1px solid #8C7A72; padding: 0.35em 0.7em; min-width: 18mm; height: 1.9em; }
+.ns-body th { background: #F5EDE6; font-weight: 700; }
+.ns-body .notice-table td { border: 0; border-bottom: 1px solid #E5DAD2; padding: 0.25em 0.8em; height: auto; }
+.notice-table td.num { text-align: left; white-space: nowrap; }
+.ns-body .notice-table tr.total td { font-weight: 800; border-top: 2px solid var(--brand-brown); border-bottom: 0; }
+.ns-signoff { margin-top: auto; padding-top: 5mm; text-align: left; font-weight: 700; color: var(--brand-brown); }
+
+.ns-foot { flex: 0 0 auto; margin: 0 14mm; padding: 3mm 0 7mm; border-top: 1.5px solid var(--brand-brown); text-align: center; color: var(--brand-brown); }
+.ns-services { font-size: 11pt; letter-spacing: 0.04em; }
+.ns-contacts { display: flex; justify-content: center; flex-wrap: wrap; gap: 2mm 6mm; font-size: 9.5pt; margin-top: 1mm; color: #5A3A33; }
+
+/* שדות בעורך */
+.notice-sheet.is-editing .ns-body, .notice-sheet.is-editing .ns-title { border-radius: 3mm; }
+.notice-sheet.is-editing .ns-body:focus, .notice-sheet.is-editing .ns-title:focus { box-shadow: 0 0 0 2px var(--petrol-200); }
+.nf { background: #FFF3B0; border: 1.5px dashed #E0A800; border-radius: 4px; padding: 0 3px; color: #6B4E00; cursor: pointer; white-space: nowrap; }
+.nf.is-filled { background: #E7F6EE; border: 1px solid #9FD9B8; color: inherit; border-style: solid; }
+.na { background: #E6F0FB; border-radius: 4px; padding: 0 3px; color: #1D4F86; }
+.na.na-missing, .na-missing { color: #8E9AAB; font-style: italic; }
+.na-block { margin: 0.2em 0 0.6em; }
+.nf-blank { display: inline-block; min-width: 32mm; border-bottom: 1px solid #333; }
+
+@media (max-width: 1180px) {
+  .notices-split { grid-template-columns: minmax(0, 1fr); }
+  .notices-side { position: static; max-height: none; }
+}
+
+/* הדפסת מודעה: רק הדפים, בגודל A4 מלא */
+.notice-print-root { display: none; }
+@media print {
+  body.print-notice > *:not(.notice-print-root) { display: none !important; }
+  body.print-notice .notice-print-root { display: block !important; }
+  .notice-print-root .notice-sheet { box-shadow: none; margin: 0; page-break-after: always; break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .notice-print-root .notice-sheet:last-child { page-break-after: auto; break-after: auto; }
+}
+.ns-panel .search-box { flex: 0 0 auto; }

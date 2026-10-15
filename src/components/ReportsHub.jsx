@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { FileSpreadsheet, Mail } from 'lucide-react';
 import { PageHeader, SubTabs } from './ui';
 import ReportGenerator from './ReportGenerator';
-import LetterWizard from './LetterWizard';
+import NoticesView from './NoticesView';
 
 export default function ReportsHub() {
   const { currentBuilding, activeSubTab, setActiveSubTab } = useApp();
@@ -20,10 +20,10 @@ export default function ReportsHub() {
         onChange={setActiveSubTab}
         tabs={[
           { id: 'reports', label: 'דוחות כספיים', icon: FileSpreadsheet },
-          { id: 'letters', label: 'מכתבים ותפוצה', icon: Mail }
+          { id: 'letters', label: 'מודעות ומכתבים', icon: Mail }
         ]}
       />
-      {subTab === 'letters' ? <LetterWizard /> : <ReportGenerator key={currentBuilding?.id || 'all'} />}
+      {subTab === 'letters' ? <NoticesView /> : <ReportGenerator key={currentBuilding?.id || 'all'} />}
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { unitFields } from '../utils/units';
 import * as lv from '../utils/levies';
 import * as pp from '../utils/paymentPlans';
 import * as iss from '../utils/issues';
+import * as nt from '../utils/notices';
+import { NOTICE_CATEGORIES, NOTICE_TEMPLATES } from '../data/noticeTemplates';
 import { DEFAULT_CATEGORY_RULES, DEFAULT_HIYUVIT_DEPOSIT_NAMES } from '../utils/importPlan';
 
 const INITIAL_MONTH = '2026-09';
@@ -20,6 +22,7 @@ const STORAGE_KEY = 'bait_umnucha_state_v1';
 const SETTINGS_STORAGE_KEY = 'bait_umnucha_settings_v1';
 const PRESETS_STORAGE_KEY = 'bait_umnucha_report_presets_v2';
 const DISPLAY_STORAGE_KEY = 'bait_umnucha_display_v1';
+const NOTICES_STORAGE_KEY = 'bait_umnucha_notices_v1';
 
 // הגדרות תצוגה אישיות (נשמרות בדפדפן הזה בלבד)
 export const DEFAULT_DISPLAY = {
@@ -157,6 +160,24 @@ export function AppProvider({ children }) {
   };
   const [userRole, setUserRole] = useState('admin'); // 'admin' | 'rep'
   const [currentMonth, setCurrentMonth] = useState(INITIAL_MONTH);
+
+  // ספריית תבניות המודעות (אפיון 03): קטגוריות, תבניות, גרסאות וסל מחזור
+  const [noticeLibrary, setNoticeLibrary] = useState(() => {
+    try {
+      const saved = localStorage.getItem(NOTICES_STORAGE_KEY);
+      if (saved) return nt.purgeRecycle(JSON.parse(saved));
+    } catch (e) {
+      console.error('Failed to load notice library:', e);
+    }
+    return nt.initialLibrary(NOTICE_CATEGORIES, NOTICE_TEMPLATES);
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTICES_STORAGE_KEY, JSON.stringify(noticeLibrary));
+    } catch (e) {
+      console.error('Failed to save notice library:', e);
+    }
+  }, [noticeLibrary]);
 
   const [reportPresets, setReportPresets] = useState(() => {
     try {
@@ -505,6 +526,14 @@ export function AppProvider({ children }) {
     return iss.linkExpense(linked, issueId, { method, amount, txId });
   });
 
+  // מודעות (אפיון 03) — הלוגיקה ב-utils/notices
+  const updateNoticeLibrary = (fn) => setNoticeLibrary(prev => fn(prev));
+  // יומן מודעות שהופקו (סעיף 6.2): טקסט בלבד, בלי תמונות, כדי לשמור על נפח קטן
+  const logNotice = (buildingIds, entry) => setBuildings(prev => prev.map(b => (!buildingIds.includes(b.id) ? b : {
+    ...b,
+    noticeLog: [{ id: `nl-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, at: new Date().toISOString(), ...entry, html: String(entry.html || '').replace(/<img[^>]*>/g, '<p>[תמונה]</p>') }, ...(b.noticeLog || [])].slice(0, 100)
+  })));
+
   // שמירת מצב דוח חדש (Preset)
   const savePreset = (presetData) => {
     const newPreset = {
@@ -572,6 +601,9 @@ export function AppProvider({ children }) {
     setActiveSubTab,
     letterPreset,
     setLetterPreset,
+    noticeLibrary,
+    updateNoticeLibrary,
+    logNotice,
     userRole,
     setUserRole,
     currentMonth,
