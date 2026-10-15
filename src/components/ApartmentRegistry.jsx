@@ -9,8 +9,8 @@ import {
   readTenantExcelFile
 } from '../utils/excelHelper';
 import { PAYMENT_METHODS, OCCUPANT_TYPES } from '../data/initialData';
-import { Download, Upload, UserPlus, Edit3, Trash2, Repeat, Search, Users, Store, Package, CalendarClock } from 'lucide-react';
-import { PageHeader, Segmented, Modal, Field, EmptyState, BuildingName, FlashMessage, useFlash } from './ui';
+import { Download, Upload, UserPlus, Edit3, Trash2, Repeat, Search, Users, Store, Package, CalendarClock, Plus, FileSpreadsheet, Phone, Mail } from 'lucide-react';
+import { PageHeader, Segmented, Modal, Field, EmptyState, BuildingName, FlashMessage, useFlash, MenuButton, Drawer } from './ui';
 import ConfirmModal from './ConfirmModal';
 import { formatILS, aptDebt, hasDebt, withBuilding, todayISO, monthName, requestBuildingPick } from '../utils/format';
 import { isCommercial, unitLabel, unitDisplayName, unitsSummary, COMMERCIAL_LABELS } from '../utils/units';
@@ -68,6 +68,9 @@ export default function ApartmentRegistry() {
 
   // אישור מחיקה
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // חלונית הפרטים של דירה: { buildingId, aptId }
+  const [detail, setDetail] = useState(null);
 
   // ------------------------------------------------------------------------
   // נתונים
@@ -164,6 +167,7 @@ export default function ApartmentRegistry() {
   };
 
   const turnoverApt = turnover ? findApt(turnover.buildingId, turnover.aptId) : null;
+  const detailApt = detail ? apartments.find(a => a.buildingId === detail.buildingId && a.id === detail.aptId) || null : null;
   const setField = (key) => (e) => setAptForm(prev => ({ ...prev, [key]: e.target.value }));
 
   return (
@@ -173,23 +177,28 @@ export default function ApartmentRegistry() {
         subtitle={isGlobalMode ? `${unitsSummary(apartments)} ב-${buildings.length} בניינים` : unitsSummary(apartments)}
         actions={
           <>
-            <button
-              className="btn btn-secondary"
-              onClick={() => isGlobalMode ? downloadMasterBuildingsTemplate(buildings) : downloadSingleBuildingTemplate(currentBuilding.name)}
-              title={isGlobalMode ? 'תבנית אקסל עם לשונית לכל בניין' : 'תבנית אקסל ריקה לבניין'}
-            >
-              <Download size={16} /> {isGlobalMode ? 'תבנית מאסטר' : 'תבנית אקסל'}
-            </button>
-            <label className="btn btn-secondary" title="טעינת קובץ אקסל לעדכון רשימת הדיירים">
-              <Upload size={16} /> ייבוא מאקסל
-              <input type="file" accept=".xlsx, .xls, .csv" hidden onChange={handleExcelUpload} />
-            </label>
-            <button className="btn btn-secondary" onClick={() => openAdd('commercial')}>
-              <Store size={16} /> הוספת מסחר
-            </button>
-            <button className="btn btn-primary" onClick={() => openAdd('residential')}>
-              <UserPlus size={16} /> הוספת דירה
-            </button>
+            <MenuButton
+              label="אקסל"
+              icon={FileSpreadsheet}
+              items={[
+                {
+                  label: isGlobalMode ? 'הורדת תבנית מאסטר' : 'הורדת תבנית אקסל',
+                  hint: isGlobalMode ? 'לשונית לכל בניין' : 'ריקה לבניין',
+                  icon: Download,
+                  onClick: () => isGlobalMode ? downloadMasterBuildingsTemplate(buildings) : downloadSingleBuildingTemplate(currentBuilding.name)
+                },
+                { label: 'ייבוא רשימת דיירים', icon: Upload, file: { accept: '.xlsx, .xls, .csv', onChange: handleExcelUpload } }
+              ]}
+            />
+            <MenuButton
+              label="הוספה"
+              icon={Plus}
+              variant="primary"
+              items={[
+                { label: 'דירה', icon: UserPlus, onClick: () => openAdd('residential') },
+                { label: 'חנות או מחסן', icon: Store, onClick: () => openAdd('commercial') }
+              ]}
+            />
           </>
         }
       />
@@ -248,11 +257,9 @@ export default function ApartmentRegistry() {
                   <th>יחידה</th>
                   <th>דייר / עסק</th>
                   <th>טלפון</th>
-                  <th>אימייל</th>
                   <th className="num">דמי ועד</th>
                   <th>תשלום</th>
                   <th>מצב חוב</th>
-                  <th className="col-center">פעולות</th>
                 </tr>
               </thead>
               <tbody>
@@ -260,9 +267,16 @@ export default function ApartmentRegistry() {
                   const debt = hasDebt(apt);
                   const location = [apt.entrance && `כניסה ${apt.entrance}`, apt.floor && `קומה ${apt.floor}`].filter(Boolean).join(' · ');
                   return (
-                    <tr key={`${apt.buildingId}-${apt.id}`} className={debt ? 'row-alert' : ''}>
+                    <tr
+                      key={`${apt.buildingId}-${apt.id}`}
+                      className={`row-click${debt ? ' row-alert' : ''}`}
+                      tabIndex={0}
+                      onClick={() => setDetail({ buildingId: apt.buildingId, aptId: apt.id })}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setDetail({ buildingId: apt.buildingId, aptId: apt.id }); }}
+                      title="לחיצה לפרטים ופעולות"
+                    >
                       {isGlobalMode && (
-                        <td><BuildingName name={apt.buildingName} color={apt.buildingColor} onClick={() => setSelectedBuildingId(apt.buildingId)} /></td>
+                        <td onClick={(e) => e.stopPropagation()}><BuildingName name={apt.buildingName} color={apt.buildingColor} onClick={() => setSelectedBuildingId(apt.buildingId)} /></td>
                       )}
                       <td className="cell-strong">
                         {isCommercial(apt) ? (
@@ -277,8 +291,7 @@ export default function ApartmentRegistry() {
                         <span className="cell-strong">{unitDisplayName(apt) || 'לא הוזן'}</span>
                         <span className="cell-sub">{isCommercial(apt) ? (apt.tenantName ? `איש קשר: ${apt.tenantName}` : COMMERCIAL_LABELS[apt.commercialLabel] || 'מסחר') : (apt.occupantType || 'שוכר')}</span>
                       </td>
-                      <td>{apt.phone ? <a href={`tel:${apt.phone}`} className="ltr" style={{ textDecoration: 'none', fontWeight: 500 }}>{apt.phone}</a> : <span className="muted">—</span>}</td>
-                      <td className="muted" style={{ fontSize: '0.87rem' }}>{apt.email || '—'}</td>
+                      <td>{apt.phone ? <a href={`tel:${apt.phone}`} className="ltr" style={{ textDecoration: 'none', fontWeight: 500 }} onClick={(e) => e.stopPropagation()}>{apt.phone}</a> : <span className="muted">—</span>}</td>
                       <td className="num">{formatILS(apt.monthlyDues)}</td>
                       <td><span className="badge badge-neutral">{apt.paymentMethod || 'חיובית'}</span></td>
                       <td>
@@ -291,26 +304,6 @@ export default function ApartmentRegistry() {
                           <span className="badge badge-success">תקין</span>
                         )}
                       </td>
-                      <td className="cell-actions">
-                        <div>
-                          <button className="btn btn-secondary btn-sm btn-icon" title="עריכת פרטי הדירה" onClick={() => openEdit(apt)}><Edit3 size={14} /></button>
-                          <button className="btn btn-secondary btn-sm btn-icon" title="החלפת דייר" onClick={() => openTurnover(apt)}><Repeat size={14} /></button>
-                          {debt && (
-                            <button
-                              className="btn btn-secondary btn-sm btn-icon"
-                              title="הסדר חוב בתשלומים"
-                              onClick={() => {
-                                setPlanDraft({ buildingId: apt.buildingId, direction: 'receivable', prefill: { unitId: apt.id, debtMonths: apt.debtMonths, totalAmount: aptDebt(apt), purpose: `חוב דמי ועד ${apt.debtMonths.map(monthName).join(', ')}` } });
-                                setSelectedBuildingId(apt.buildingId);
-                                setActiveTab('finance', 'plans');
-                              }}
-                            >
-                              <CalendarClock size={14} />
-                            </button>
-                          )}
-                          <button className="btn btn-danger btn-sm btn-icon" title="מחיקת הדירה" onClick={() => setDeleteTarget(apt)}><Trash2 size={14} /></button>
-                        </div>
-                      </td>
                     </tr>
                   );
                 })}
@@ -319,6 +312,21 @@ export default function ApartmentRegistry() {
           </div>
         )}
       </div>
+
+      <AptDrawer
+        apt={detailApt}
+        onClose={() => setDetail(null)}
+        onEdit={() => { setDetail(null); openEdit(detailApt); }}
+        onTurnover={() => { setDetail(null); openTurnover(detailApt); }}
+        onPlan={() => {
+          const apt = detailApt;
+          setDetail(null);
+          setPlanDraft({ buildingId: apt.buildingId, direction: 'receivable', prefill: { unitId: apt.id, debtMonths: apt.debtMonths, totalAmount: aptDebt(apt), purpose: `חוב דמי ועד ${apt.debtMonths.map(monthName).join(', ')}` } });
+          setSelectedBuildingId(apt.buildingId);
+          setActiveTab('finance', 'plans');
+        }}
+        onDelete={() => { setDetail(null); setDeleteTarget(detailApt); }}
+      />
 
       {/* מודל: הוספה / עריכה */}
       <Modal
@@ -469,5 +477,63 @@ export default function ApartmentRegistry() {
         confirmText="מחיקת הדירה"
       />
     </div>
+  );
+}
+
+// חלונית הפרטים: כל המידע על היחידה וכל הפעולות, עם טקסט
+function AptDrawer({ apt, onClose, onEdit, onTurnover, onPlan, onDelete }) {
+  if (!apt) return null;
+  const debt = hasDebt(apt);
+  const commercial = isCommercial(apt);
+  const location = [apt.entrance && `כניסה ${apt.entrance}`, apt.floor && `קומה ${apt.floor}`].filter(Boolean).join(' · ');
+  const rows = [
+    [commercial ? 'עסק' : 'דייר', unitDisplayName(apt) || 'לא הוזן'],
+    commercial ? ['איש קשר', apt.tenantName] : ['סוג', apt.occupantType],
+    ['מיקום', location],
+    ['טלפון', apt.phone && <a key="phone" href={`tel:${apt.phone}`} className="ltr"><Phone size={13} /> {apt.phone}</a>],
+    ['מייל', apt.email && <a key="email" href={`mailto:${apt.email}`} className="ltr"><Mail size={13} /> {apt.email}</a>],
+    ['דמי ועד', formatILS(apt.monthlyDues)],
+    ['אופן תשלום', apt.paymentMethod || 'חיובית'],
+    commercial && ['שם המשלם בבנק', (apt.bankPayerNames || []).join(', ')],
+    commercial && ['מספר לקוח בחיובית', apt.hiyuvitClientNumber]
+  ].filter(r => r && r[1]);
+
+  return (
+    <Drawer
+      isOpen
+      onClose={onClose}
+      title={unitLabel(apt)}
+      subtitle={<BuildingName name={apt.buildingName} color={apt.buildingColor} />}
+      footer={
+        <button type="button" className="btn btn-danger btn-sm" onClick={onDelete}>
+          <Trash2 size={15} /> מחיקת {commercial ? 'היחידה' : 'הדירה'}
+        </button>
+      }
+    >
+      {debt ? (
+        <div className="alert alert-error stack" style={{ gap: 4, alignItems: 'stretch' }}>
+          <strong>חוב {formatILS(aptDebt(apt))}</strong>
+          <span style={{ fontWeight: 500 }}>{apt.debtMonths.length} חודשים: {apt.debtMonths.map(monthName).join(', ')}</span>
+        </div>
+      ) : (
+        <div className="alert alert-success">אין חוב</div>
+      )}
+
+      <section>
+        <h3 className="drawer-section-title">פרטים</h3>
+        <dl className="detail-list">
+          {rows.map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd>{v}</dd></React.Fragment>)}
+        </dl>
+      </section>
+
+      <section>
+        <h3 className="drawer-section-title">פעולות</h3>
+        <div className="drawer-actions">
+          <button type="button" className="btn btn-secondary" onClick={onEdit}><Edit3 size={16} /> עריכת פרטים</button>
+          <button type="button" className="btn btn-secondary" onClick={onTurnover}><Repeat size={16} /> החלפת דייר</button>
+          {debt && <button type="button" className="btn btn-secondary" onClick={onPlan}><CalendarClock size={16} /> הסדר חוב בתשלומים</button>}
+        </div>
+      </section>
+    </Drawer>
   );
 }

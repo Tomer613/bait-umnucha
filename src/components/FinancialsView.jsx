@@ -18,9 +18,9 @@ import {
   Wrench,
   CheckCircle2,
   ChevronLeft,
+  ChevronRight,
   CalendarCheck,
   Check,
-  FileUp,
   ScrollText,
   Pencil,
   Scale,
@@ -38,6 +38,7 @@ import { CLOSE_STEPS, getMonthClose, closeStatus, isMonthClosed, missingSteps } 
 import { formatILS, formatMonth, monthName, splitInOut, sumBy, withBuilding, todayISO, aptDebt, requestBuildingPick } from '../utils/format';
 import { computeBalance, buildingBalance, formatDateIL, SOURCE_LABELS, round2, managerOwed, MANAGER_ACCOUNT } from '../utils/ledger';
 import { planBankImport, planHiyuvitImport } from '../utils/importPlan';
+import { addMonths } from '../utils/levies';
 import { unitLabel, unitDisplayName } from '../utils/units';
 
 const STEP_ICONS = { bank: UploadCloud, hiyuvit: CreditCard, receipts: PlusCircle, expenses: MinusCircle };
@@ -55,39 +56,93 @@ function defaultDateFor(month) {
   return today.startsWith(month) ? today : `${month}-01`;
 }
 
-export default function FinancialsView() {
-  const { activeSubTab, setActiveSubTab, currentMonth, currentBuilding } = useApp();
-  const [flash, showFlash] = useFlash();
-  const subTab = activeSubTab || 'transactions';
+const TABS = [
+  { id: 'transactions', label: 'סגירת חודש ותנועות', icon: Receipt },
+  { id: 'levies', label: 'גביות מיוחדות', icon: Wrench },
+  { id: 'plans', label: 'פריסות חוב', icon: CalendarClock },
+  { id: 'logs', label: 'יומנים', icon: ScrollText }
+];
 
-  const tabs = [
-    { id: 'transactions', label: 'סגירת חודש ותנועות', icon: Receipt },
-    { id: 'levies', label: 'גביות מיוחדות', icon: Wrench },
-    { id: 'plans', label: 'פריסות חוב', icon: CalendarClock }
-  ];
-  if (currentBuilding) {
-    tabs.push(
-      { id: 'imports', label: 'היסטוריית קליטות', icon: FileUp },
-      { id: 'audit', label: 'יומן שינויים', icon: ScrollText }
-    );
-  }
-  const shown = !currentBuilding && (subTab === 'imports' || subTab === 'audit') ? 'transactions' : subTab;
+// החודש הראשון שאפשר לצפות בו: לפחות 12 חודשים אחורה, ועד התנועה המוקדמת ביותר — לכל היותר שנתיים
+function earliestMonth(buildings, currentMonth) {
+  const year = addMonths(currentMonth, -12);
+  const floor = addMonths(currentMonth, -24);
+  const first = buildings.flatMap(b => (b.transactions || []).map(tx => tx.month)).filter(Boolean).sort()[0];
+  if (!first || first >= year) return year;
+  return first > floor ? first : floor;
+}
+
+export default function FinancialsView() {
+  const { activeSubTab, setActiveSubTab, currentMonth, currentBuilding, buildings } = useApp();
+  const [flash, showFlash] = useFlash();
+  const [viewMonth, setViewMonth] = useState(currentMonth);
+  // קישורים ישנים ללשוניות שאוחדו ל"יומנים"
+  const subTab = activeSubTab === 'imports' || activeSubTab === 'audit' ? 'logs' : (activeSubTab || 'transactions');
+  const minMonth = earliestMonth(buildings, currentMonth);
 
   return (
     <div className="page">
-      <PageHeader title="כספים" subtitle={formatMonth(currentMonth)} />
-      <SubTabs active={shown} onChange={setActiveSubTab} tabs={tabs} />
+      <PageHeader
+        title="כספים"
+        subtitle={subTab === 'transactions' ? null : formatMonth(currentMonth)}
+        actions={subTab === 'transactions' && (
+          <MonthPicker value={viewMonth} min={minMonth} max={currentMonth} onChange={setViewMonth} />
+        )}
+      />
+      <SubTabs active={subTab} onChange={setActiveSubTab} tabs={TABS} />
       <FlashMessage flash={flash} />
-      {shown === 'levies' && <SpecialLevies />}
-      {shown === 'plans' && <PaymentPlans showFlash={showFlash} />}
-      {shown === 'transactions' && <Transactions showFlash={showFlash} />}
-      {shown === 'imports' && <div className="card"><ImportHistory building={currentBuilding} onFlash={showFlash} /></div>}
-      {shown === 'audit' && <div className="card"><AuditLog building={currentBuilding} /></div>}
+      {subTab === 'levies' && <SpecialLevies />}
+      {subTab === 'plans' && <PaymentPlans showFlash={showFlash} />}
+      {subTab === 'transactions' && (
+        <>
+          {viewMonth !== currentMonth && (
+            <div className="alert alert-info" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <span>מוצג חודש קודם: <strong>{formatMonth(viewMonth)}</strong>. החודש הנוכחי הוא {formatMonth(currentMonth)}.</span>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setViewMonth(currentMonth)}>חזרה ל{monthName(currentMonth)}</button>
+            </div>
+          )}
+          <Transactions key={viewMonth} month={viewMonth} isPast={viewMonth !== currentMonth} showFlash={showFlash} />
+        </>
+      )}
+      {subTab === 'logs' && <Logs building={currentBuilding} showFlash={showFlash} />}
     </div>
   );
 }
 
-function Transactions({ showFlash }) {
+// בורר חודש: ‹ ספטמבר 2026 ›
+function MonthPicker({ value, min, max, onChange }) {
+  return (
+    <div className="month-picker" role="group" aria-label="בחירת חודש">
+      <button type="button" className="btn btn-secondary btn-sm btn-icon" onClick={() => onChange(addMonths(value, -1))} disabled={value <= min} aria-label="החודש הקודם" title="החודש הקודם">
+        <ChevronRight size={16} />
+      </button>
+      <span className="month-picker-label">{formatMonth(value)}</span>
+      <button type="button" className="btn btn-secondary btn-sm btn-icon" onClick={() => onChange(addMonths(value, 1))} disabled={value >= max} aria-label="החודש הבא" title="החודש הבא">
+        <ChevronLeft size={16} />
+      </button>
+    </div>
+  );
+}
+
+// היסטוריית קליטות ויומן שינויים — כלי בדיקה, בלשונית אחת
+function Logs({ building, showFlash }) {
+  const [view, setView] = useState('imports');
+  if (!building) {
+    return <EmptyState icon={ScrollText} title="בחרו בניין" text="היסטוריית הקליטות ויומן השינויים מוצגים לכל בניין בנפרד. בחרו בניין מהתפריט בצד." />;
+  }
+  return (
+    <div className="card stack" style={{ gap: 14 }}>
+      <Segmented
+        value={view}
+        onChange={setView}
+        options={[{ id: 'imports', label: 'היסטוריית קליטות' }, { id: 'audit', label: 'יומן שינויים' }]}
+      />
+      {view === 'imports' ? <ImportHistory building={building} onFlash={showFlash} /> : <AuditLog building={building} />}
+    </div>
+  );
+}
+
+function Transactions({ month: currentMonth, isPast, showFlash }) {
   const {
     currentBuilding,
     buildings,
@@ -95,7 +150,6 @@ function Transactions({ showFlash }) {
     setActiveTab,
     recordManualReceipt,
     recordCashExpense,
-    currentMonth,
     expenseCategories,
     systemSettings,
     setCloseStep,
@@ -110,6 +164,7 @@ function Transactions({ showFlash }) {
   const [importPlan, setImportPlan] = useState(null);
   const [editTx, setEditTx] = useState(null);
   const [reopenOpen, setReopenOpen] = useState(false);
+  const [showClosedSteps, setShowClosedSteps] = useState(false);
 
   // --- הכנסה במזומן ---
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -315,14 +370,14 @@ function Transactions({ showFlash }) {
           )}
         </header>
 
-        <div className="close-progress">
+        {(isGlobalMode || status.id !== 'closed' || showClosedSteps) && <div className="close-progress">
           <div className="progress">
             <div
               className="progress-bar"
               style={{ width: `${isGlobalMode ? (closedCount / (buildings.length || 1)) * 100 : (status.done / CLOSE_STEPS.length) * 100}%` }}
             />
           </div>
-        </div>
+        </div>}
 
         {isGlobalMode ? (
           openBuildings.length === 0 ? (
@@ -332,8 +387,8 @@ function Transactions({ showFlash }) {
               {openBuildings.map(b => (
                 <li key={b.id}>
                   <BuildingName name={b.name} color={b.color} />
-                  <span className="close-missing">
-                    {missingSteps(b, currentMonth).map(st => <span key={st.id} className="badge badge-warning">{st.short}</span>)}
+                  <span className="close-missing muted">
+                    חסר: {missingSteps(b, currentMonth).map(st => st.short).join(', ')}
                   </span>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedBuildingId(b.id)}>
                     לסגירת החודש <ChevronLeft size={15} />
@@ -342,6 +397,14 @@ function Transactions({ showFlash }) {
               ))}
             </ul>
           )
+        ) : status.id === 'closed' && !showClosedSteps ? (
+          <div className="close-done">
+            <CheckCircle2 size={20} /> חודש {monthName(currentMonth)} סגור. כל ארבעת השלבים אושרו.
+            <span className="row" style={{ gap: 4, marginInlineStart: 'auto' }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowClosedSteps(true)}>הצגת השלבים</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReopenOpen(true)}>פתיחה מחדש לתיקון</button>
+            </span>
+          </div>
         ) : (
           <>
             <div className="close-steps">
@@ -397,9 +460,10 @@ function Transactions({ showFlash }) {
             {status.id === 'closed' && (
               <div className="close-done">
                 <CheckCircle2 size={20} /> חודש {monthName(currentMonth)} סגור.
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReopenOpen(true)}>
-                  פתיחה מחדש לתיקון
-                </button>
+                <span className="row" style={{ gap: 4, marginInlineStart: 'auto' }}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowClosedSteps(false)}>הסתרת השלבים</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReopenOpen(true)}>פתיחה מחדש לתיקון</button>
+                </span>
               </div>
             )}
           </>
@@ -407,7 +471,7 @@ function Transactions({ showFlash }) {
       </section>
 
       <div className="kpi-grid">
-        <Kpi variant="hero" icon={Wallet} label={isGlobalMode ? 'יתרה בכל הקופות' : 'יתרת קופה'} value={formatILS(balance)} meta={balanceMeta} />
+        <Kpi variant="hero" icon={Wallet} label={`${isGlobalMode ? 'יתרה בכל הקופות' : 'יתרת קופה'}${isPast ? ' היום' : ''}`} value={formatILS(balance)} meta={balanceMeta} />
         <Kpi variant="good" icon={TrendingUp} label={`הכנסות ב${monthName(currentMonth)}`} value={formatILS(income)} meta="חיובית, העברות ומזומן" />
         <Kpi variant="alert" icon={TrendingDown} label={`הוצאות ב${monthName(currentMonth)}`} value={formatILS(expenses)} meta="ספקים, תחזוקה ועמלות" />
       </div>

@@ -1,8 +1,8 @@
 // ==========================================================================
 // בית ומנוחה - רכיבי ממשק משותפים (כותרת עמוד, אריח מדד, חלונית, טאבים)
 // ==========================================================================
-import React, { useEffect, useState } from 'react';
-import { X, CheckCircle2, AlertCircle, LayoutGrid } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, CheckCircle2, AlertCircle, LayoutGrid, ChevronDown } from 'lucide-react';
 
 export function PageHeader({ title, subtitle, actions }) {
   return (
@@ -199,5 +199,69 @@ export function SettingsCard({ icon: Icon, title, sub, actions, children }) {
       </div>
       {children}
     </section>
+  );
+}
+
+// כפתור עם תפריט נפתח. פריט: { label, icon, onClick } או { label, icon, file: { accept, onChange } }
+export function MenuButton({ label, icon: Icon, items, variant = 'secondary', align = 'end' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <span className="menu-btn" ref={ref}>
+      <button type="button" className={`btn btn-${variant}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        {Icon && <Icon size={16} />} {label} <ChevronDown size={15} />
+      </button>
+      {open && (
+        <span className={`menu-list menu-list--${align}`} role="menu">
+          {items.filter(Boolean).map(it => it.file ? (
+            <label key={it.label} className="menu-item" role="menuitem">
+              {it.icon && <it.icon size={16} />} <span>{it.label}</span>
+              <input type="file" accept={it.file.accept} hidden onChange={(e) => { setOpen(false); it.file.onChange(e); }} />
+            </label>
+          ) : (
+            <button key={it.label} type="button" className="menu-item" role="menuitem" onClick={() => { setOpen(false); it.onClick(); }}>
+              {it.icon && <it.icon size={16} />} <span>{it.label}</span>
+              {it.hint && <span className="menu-item-hint">{it.hint}</span>}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// חלונית צד לפרטי רשומה: נפתחת מהצד השמאלי, נסגרת ב-Esc או בלחיצה מחוץ לה
+export function Drawer({ isOpen, onClose, title, subtitle, children, footer }) {
+  const panelRef = useRef(null);
+  useEffect(() => { if (isOpen) panelRef.current?.focus(); }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [isOpen, onClose]);
+  if (!isOpen) return null;
+  return (
+    <div className="drawer-overlay no-print" onClick={onClose}>
+      <aside className="drawer" ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined} onClick={(e) => e.stopPropagation()}>
+        <header className="drawer-head">
+          <div style={{ minWidth: 0 }}>
+            <h2 className="drawer-title">{title}</h2>
+            {subtitle && <div className="drawer-sub">{subtitle}</div>}
+          </div>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="סגירה"><X size={20} /></button>
+        </header>
+        <div className="drawer-body">{children}</div>
+        {footer && <footer className="drawer-foot">{footer}</footer>}
+      </aside>
+    </div>
   );
 }

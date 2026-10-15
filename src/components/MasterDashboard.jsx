@@ -56,7 +56,7 @@ export default function MasterDashboard() {
     setSelectedBuildingId(item.building.id);
     switch (item.action) {
       case 'intake': setActiveTab('finance'); break;
-      case 'letter': setLetterPreset({ templateId: 'tpl-debt-warning', buildingId: item.building.id, apartmentId: item.aptId }); setActiveTab('reports', 'letters'); break;
+      case 'letter': setLetterPreset({ templateId: 'tpl-debt-warning', buildingId: item.building.id, apartmentId: item.aptId }); setActiveTab('notices'); break;
       case 'issue': setActiveTab('issues'); break;
       case 'levy': setActiveTab('finance', 'levies'); break;
       case 'plans': setActiveTab('finance', 'plans'); break;
@@ -70,8 +70,8 @@ export default function MasterDashboard() {
       <div className="brief">
         <div className="brief-identity">
           {currentBuilding
-            ? <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} size="xl" />
-            : <AllBuildingsAvatar size="xl" />}
+            ? <BuildingAvatar name={currentBuilding.name} color={currentBuilding.color} size="lg" />
+            : <AllBuildingsAvatar size="lg" />}
           <span className="brief-identity-name">{currentBuilding ? currentBuilding.name : 'כל הבניינים'}</span>
         </div>
         <div className="brief-text">

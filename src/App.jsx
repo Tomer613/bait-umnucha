@@ -8,13 +8,14 @@ import BuildingSidebar from './components/BuildingSidebar';
 import MasterDashboard from './components/MasterDashboard';
 import FinancialsView from './components/FinancialsView';
 import ReportsHub from './components/ReportsHub';
+import NoticesHub from './components/NoticesHub';
 import ApartmentRegistry from './components/ApartmentRegistry';
 import IssuesTracker from './components/IssuesTracker';
 import AddBuildingModal from './components/AddBuildingModal';
 import SettingsView from './components/SettingsView';
 
 function MainApp() {
-  const { activeTab, systemSettings } = useApp();
+  const { activeTab } = useApp();
   const [isAddBuildingOpen, setIsAddBuildingOpen] = useState(false);
 
   const renderActiveView = () => {
@@ -27,6 +28,8 @@ function MainApp() {
         return <IssuesTracker />;
       case 'reports':
         return <ReportsHub />;
+      case 'notices':
+        return <NoticesHub />;
       case 'settings':
         return <SettingsView onOpenAddBuilding={() => setIsAddBuildingOpen(true)} />;
       case 'dashboard':
@@ -45,9 +48,6 @@ function MainApp() {
           <main>
             {renderActiveView()}
           </main>
-          <footer className="app-footer no-print">
-            <strong>{systemSettings?.companyName || 'בית ומנוחה'}</strong> · ניהול ועד בית ואחזקת מבנים
-          </footer>
         </div>
       </div>
 

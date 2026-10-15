@@ -70,7 +70,7 @@ export default function TransactionModal({ building, tx, onClose, onDone }) {
         {locked && !tx.deletedAt && (
           <div className="alert alert-info">
             <Lock size={18} />
-            <span>התנועה הגיעה מקובץ ה{SOURCE_LABELS[tx.source]}, ולכן הסכום והתאריך נעולים. אם הם שגויים, בטלו את הקליטה כולה ב"היסטוריית קליטות" וקלטו את הקובץ הנכון.</span>
+            <span>התנועה הגיעה מקובץ ה{SOURCE_LABELS[tx.source]}, ולכן הסכום והתאריך נעולים. אם הם שגויים, בטלו את הקליטה כולה בלשונית "יומנים" ← "היסטוריית קליטות", וקלטו את הקובץ הנכון.</span>
           </div>
         )}
 

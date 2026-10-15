@@ -1,10 +1,10 @@
 // ==========================================================================
-// בית ומנוחה - סרגל עליון: שורת מותג, שורת הניווט הראשי (5 אזורים),
+// בית ומנוחה - סרגל עליון: שורת מותג, שורת הניווט הראשי (6 אזורים),
 // ובמסך צר — פס הבניין הנבחר שפותח את תפריט הבניינים
 // ==========================================================================
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { ListChecks, Wallet, Users, MessageSquare, FileText, Settings, ChevronDown, ArrowRight } from 'lucide-react';
+import { ListChecks, Wallet, Users, MessageSquare, FileText, Mail, Settings, ChevronDown, ArrowRight } from 'lucide-react';
 import { BuildingAvatar, AllBuildingsAvatar } from './ui';
 import { openIssuesCount, sumBy, requestBuildingPick } from '../utils/format';
 import { computeTasks, countTaskItems, DEFAULT_LOW_BALANCE, DEFAULT_CHRONIC_MONTHS } from '../utils/tasks';
@@ -14,7 +14,8 @@ const NAV_TABS = [
   { id: 'finance', label: 'כספים', icon: Wallet },
   { id: 'tenants', label: 'דירות ודיירים', icon: Users },
   { id: 'issues', label: 'פניות', icon: MessageSquare },
-  { id: 'reports', label: 'דוחות ומכתבים', icon: FileText }
+  { id: 'reports', label: 'דוחות', icon: FileText },
+  { id: 'notices', label: 'מודעות ומכתבים', icon: Mail }
 ];
 
 export default function Navbar() {
