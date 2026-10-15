@@ -13,6 +13,7 @@
 | [03-notices.md](03-notices.md) | מודעות ומחולל תבניות | ממתין לקובצי הוורד |
 | [04-financial-integrity.md](04-financial-integrity.md) | אמינות הנתונים הכספיים (סעיף א למטה, ו-ב3) | סגור (שלב 6 ממתין ללקוח) |
 | [05-special-levies.md](05-special-levies.md) | גביות מיוחדות בתשלומים, קופות וזיהוי אוטומטי בחיובית | סגור |
+| [06-commercial-units.md](06-commercial-units.md) | יחידות מסחר (חזית מסחרית) | סגור |
 
 ## ⏳ ממתין ללקוח
 | נושא | מה חסר | קשור ל |
