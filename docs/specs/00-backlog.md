@@ -10,7 +10,7 @@
 | [00-principles.md](00-principles.md) | **עקרונות כלליים** (גוברים על כל אפיון) | פעיל |
 | [01-users-and-permissions.md](01-users-and-permissions.md) | משתמשים, התחברות והרשאות | סגור |
 | [02-issues.md](02-issues.md) | מודול פניות | **בנוי בחלקו** (צד הנציג ממתין ל-Supabase) |
-| [03-notices.md](03-notices.md) | מודעות ומחולל תבניות | ממתין לקובצי הוורד |
+| [03-notices.md](03-notices.md) | מודעות ומחולל תבניות | 10 קבצים התקבלו. טיוטת תבניות ממתינה לאישור: [03a-templates-draft.md](03a-templates-draft.md) |
 | [04-financial-integrity.md](04-financial-integrity.md) | אמינות הנתונים הכספיים (סעיף א למטה, ו-ב3) | **בנוי** (שלבים 1–5 וחלק משלב 6) |
 | [05-special-levies.md](05-special-levies.md) | גביות מיוחדות בתשלומים, קופות וזיהוי אוטומטי בחיובית | **בנוי** |
 | [06-commercial-units.md](06-commercial-units.md) | יחידות מסחר (חזית מסחרית) | **בנוי** |
