@@ -15,6 +15,7 @@
 | [05-special-levies.md](05-special-levies.md) | גביות מיוחדות בתשלומים, קופות וזיהוי אוטומטי בחיובית | **בנוי** |
 | [06-commercial-units.md](06-commercial-units.md) | יחידות מסחר (חזית מסחרית) | **בנוי** |
 | [07-payment-plans.md](07-payment-plans.md) | פריסות חוב (ספקים וחייבים) | **בנוי** |
+| [10-auto-backup.md](10-auto-backup.md) | גיבוי אוטומטי לגוגל דרייב | סגור, ממתין לפיתוח (בשלב Supabase) |
 
 ## ⏳ ממתין ללקוח
 | נושא | מה חסר | קשור ל |
