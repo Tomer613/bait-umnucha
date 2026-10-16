@@ -16,10 +16,13 @@
 | [06-commercial-units.md](06-commercial-units.md) | יחידות מסחר (חזית מסחרית) | **בנוי** |
 | [07-payment-plans.md](07-payment-plans.md) | פריסות חוב (ספקים וחייבים) | **בנוי** |
 | [10-auto-backup.md](10-auto-backup.md) | גיבוי אוטומטי לגוגל דרייב | סגור, ממתין לפיתוח (בשלב Supabase) |
+| [11-improvements.md](11-improvements.md) | סבב שיפורים: קטגוריית ברירת מחדל, טלפונים, פעולות מהירות, חיפוש, מיון, יתרה חודשית, טלפון, טעינה | סגור, ממתין לפיתוח |
+| [12-android-app.md](12-android-app.md) | אפליקציית אנדרואיד (APK) לטאבלט הכשר של המנהל | סגור, ממתין לפיתוח (אחרי Supabase) |
 
 ## ⏳ ממתין ללקוח
 | נושא | מה חסר | קשור ל |
 |---|---|---|
+| אפליקציית הטאבלט | דגם הטאבלט וגרסת האנדרואיד, האם Android System WebView פעיל, ואיך המדפסת מחוברת | [12-android-app.md](12-android-app.md) סעיף 9 |
 | תבניות מודעות | קובצי הוורד (100–200) | [03-notices.md](03-notices.md) סעיף 7.1 |
 | אמינות כספים, שלב 6 (חיובית מול בנק, קופת מזומן) | תשובות לשאלות 1, 2 ו-5א, וגם דו"ח חיובית ודו"ח עו"ש מאותו חודש ומאותו בניין | [04-financial-integrity.md](04-financial-integrity.md) סעיפים 7–8, [open-questions-for-client.md](../open-questions-for-client.md) |
 
