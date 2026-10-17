@@ -499,7 +499,7 @@ building ──< unit ──< occupancy (דייר בתקופה) ──< occupant
 |---|---|---|
 | `system_settings` (שורה אחת לכל חברה) | פרטי החברה: שם, לוגו, שם המנהל, כותרת וחתימה למודעות. ספי התראה. דמי ועד ברירת מחדל. `default_expense_category_id` ([11-improvements.md](11-improvements.md) נושא 2). הגדרות הקליטה והגביות: סף זיהוי ואישור. מצב יצירת חיובים (נושא 3.8). מדיניות שמירה לפניות ולתמונות. מה מגובה ([10-auto-backup.md](10-auto-backup.md)). תזכורת לפניות | מנהל בלבד |
 | `company_phones`, `company_emails` | רשימות עם תווית וסדר ([11-improvements.md](11-improvements.md) נושא 3) | מנהל בלבד |
-| `expense_categories` | `name`, `sort_order`, `is_fixed` ("אחר") | מנהל, ואיש צוות עם הרשאה |
+| `categories` | `direction` (הוצאה או הכנסה), `name`, `sort_order`, `system_key` (לקטגוריות מערכת כמו "גבייה מחיובית" או "אחר"), `is_fixed`. **שינוי מהתכנון:** טבלה אחת להכנסות ולהוצאות, במקום `expense_categories` | מנהל, ואיש צוות עם הרשאה |
 | `classification_rules` | `contains`, `direction`, `category_id` | מנהל, ואיש צוות עם הרשאה |
 | `issue_categories` | `name`, `sort_order` | מנהל, ואיש צוות עם הרשאה |
 | `bank_name_aliases` | `kind` (`hiyuvit_deposit` או `manager`), `text`. השמות שבהם חיובית והמנהל מופיעים בעו"ש | מנהל בלבד |
