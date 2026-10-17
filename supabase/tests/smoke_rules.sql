@@ -22,6 +22,10 @@ declare
   v_issue uuid := gen_random_uuid();
   v_msg uuid := gen_random_uuid();
   v_msg2 uuid := gen_random_uuid();
+  v_cat uuid := gen_random_uuid();
+  v_tpl uuid := gen_random_uuid();
+  v_comm uuid := gen_random_uuid();
+  i integer;
   v_n integer;
   v_num numeric;
   v_ok boolean;
@@ -156,6 +160,32 @@ begin
   insert into public.issue_messages (issue_id, kind, text) values
     (v_issue, 'message', 'שלום'), (v_issue, 'internal_note', 'פנימי'), (v_issue, 'event', 'הפנייה בטיפול');
 
+  -- הגדרות, תבניות ותקשורת
+  insert into public.categories (id, direction, name) values (v_cat, 'out', 'תחזוקה שוטפת');
+  insert into public.system_settings (org_id, default_expense_category_id) values (v_org_a, v_cat);
+  begin
+    update public.categories set deleted_at = now() where id = v_cat;
+    r := r || E'\n' || '7.x default expense category cannot be deleted: FAIL';
+  exception when others then
+    r := r || E'\n' || '7.x default expense category cannot be deleted: PASS';
+  end;
+  insert into public.notice_templates (id, name, title, body) values (v_tpl, 'התראה', 't', 'v0');
+  for i in 1..7 loop
+    update public.notice_templates set body = 'v' || i where id = v_tpl;
+  end loop;
+  select count(*) into v_n from public.notice_template_versions where template_id = v_tpl;
+  r := r || E'\n' || format('7.x template keeps last 5 versions (5): %s', case when v_n = 5 then 'PASS' else 'FAIL ' || v_n end);
+  insert into public.communications (id, building_id, occupancy_id, channel, final_body, status)
+  values (v_comm, v_b1, v_occ, 'whatsapp', 'שלום', 'opened_unconfirmed');
+  update public.communications set status = 'sent' where id = v_comm;
+  r := r || E'\n' || '7.x communication status can be confirmed: PASS';
+  begin
+    update public.communications set final_body = 'אחר' where id = v_comm;
+    r := r || E'\n' || '7.x sent communication content cannot change: FAIL';
+  exception when others then
+    r := r || E'\n' || '7.x sent communication content cannot change: PASS';
+  end;
+
   -- אישור תמיכה לקריאה
   insert into public.support_grants (org_id, level, expires_at) values (v_org_a, 'read', now() + interval '1 day');
 
@@ -173,6 +203,17 @@ begin
   select count(*) into v_n from public.audit_log;
   r := r || E'\n' || E'\n' || format('3.1 rep sees no audit log (0): %s', case when v_n = 0 then 'PASS' else 'FAIL ' || v_n end);
 
+  select count(*) into v_n from public.communications;
+  r := r || E'\n' || format('7.x rep sees no communications (0): %s', case when v_n = 0 then 'PASS' else 'FAIL ' || v_n end);
+  select count(*) into v_n from public.system_settings;
+  r := r || E'\n' || format('8.x rep reads company settings for branding (1): %s', case when v_n = 1 then 'PASS' else 'FAIL ' || v_n end);
+  begin
+    update public.system_settings set low_balance_threshold = 1 where org_id = v_org_a;
+    get diagnostics v_n = row_count;
+    r := r || E'\n' || format('8.x rep cannot change settings: %s', case when v_n = 0 then 'PASS' else 'FAIL' end);
+  exception when others then
+    r := r || E'\n' || '8.x rep cannot change settings: PASS';
+  end;
   select count(*) into v_n from public.issue_messages where issue_id = v_issue;
   r := r || E'\n' || format('6.2 rep sees message + event, not internal note (2): %s', case when v_n = 2 then 'PASS' else 'FAIL ' || v_n end);
   begin
